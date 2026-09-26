@@ -24,7 +24,7 @@ script  ──────►  Jev  ──────►  scenes
 ```
 
 1. **Script:** facts computed from the full-rate data (Jev is not asked to do arithmetic): lane and lane changes, speed, acceleration, yaw rate, heading change, indicator, traffic light, the intersections and stops along the ego's path, and nearby objects. Only relative facts: no map IDs, positions or clock times.
-2. **Jev:** two Choice questions per script (10 lateral labels such as `turn_left`, `u_turn` and `lane_change_right`; 5 longitudinal labels such as `cruising` and `hard_braking`), with the definitions in [`labels.yaml`](labels.yaml). Jev returns a probability for every label.
+2. **Jev:** two Choice questions per script (9 lateral labels such as `turn_left`, `u_turn` and `lane_change_right`; 5 longitudinal labels such as `cruising` and `hard_braking`), with the definitions in [`labels.yaml`](labels.yaml). Jev returns a probability for every label.
 3. **Scenes:** consecutive steps with the same labels become one scene with start/end times; short flickers and low-confidence maneuvers are smoothed away.
 
 ## Usage

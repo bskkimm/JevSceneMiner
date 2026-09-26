@@ -62,12 +62,11 @@ lateral:
         Moving from its lane into the side-by-side neighbor lane on the right,
         from when it starts drifting toward that lane until it has settled in it.
         The RIGHT indicator is required; without it, this is keep_lane.
-    nudge_in_lane: >-
-      Shifting sideways by less than 1.5 m, staying inside its lane, to pass a
-      stopped vehicle ahead, then returning to the lane center.
-    swerve_out_of_lane: >-
-      Swerving sideways by 1.5 m or more, partly leaving its lane, to pass a
-      stopped vehicle ahead, then returning to its lane.
+    avoidance: >-
+      Moving sideways to pass a stopped vehicle or obstacle ahead, either within
+      its lane or partly leaving it, then returning to its lane. From when it
+      starts moving sideways until it is back near the lane center. Not a lane
+      change: the ego vehicle does not settle in another lane.
     pull_over:
       indicator: curb
       definition: >-
