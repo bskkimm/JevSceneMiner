@@ -16,7 +16,7 @@ from .bag import INDICATOR_LEFT, INDICATOR_RIGHT
 from .facts import DT_S, LANE_EVERY, Timeline
 from .lanes import LaneMap, wrap
 
-HEADER = ("Driving log of the ego vehicle around NOW (Japan, left-hand traffic). Times are relative "
+HEADER = ("Driving log of the ego vehicle around NOW ({side}-hand traffic). Times are relative "
           "to NOW. OFFSET = distance from the lane center (+ = left). HEADING = change since NOW "
           "(+ = left). YAW RATE + = turning left.")
 INDICATOR_TEXT = {INDICATOR_LEFT: "LEFT", INDICATOR_RIGHT: "RIGHT"}
@@ -100,7 +100,8 @@ def _transition_text(lanemap: LaneMap, names: Aliases, a: int | None, b: int | N
     return f"moves from {names(a)} into {names(b)} (not directly connected)"
 
 
-def render(tl: Timeline, lanemap: LaneMap, now_ns: int, past_s: int = 5, future_s: int = 10) -> str | None:
+def render(tl: Timeline, lanemap: LaneMap, now_ns: int, past_s: int = 5, future_s: int = 10,
+           traffic_side: str = "left") -> str | None:
     """Script for one NOW moment, or None when there is no ego data at NOW."""
     i_now = tl.index(now_ns)
     if i_now is None:
@@ -225,7 +226,7 @@ def render(tl: Timeline, lanemap: LaneMap, now_ns: int, past_s: int = 5, future_
 
     route = _route_context(tl, lanemap, i_now)
     lanes_block = [_describe_lane(lanemap, names, lane_id) for lane_id, _ in names.items()]
-    out = [HEADER, "", "LANES"] + (lanes_block or ["(ego is off the mapped lanes)"])
+    out = [HEADER.format(side=traffic_side), "", "LANES"] + (lanes_block or ["(ego is off the mapped lanes)"])
     out += ["", "TIME   LANE     OFFSET   SPEED     ACCEL       YAW RATE  HEADING  INDICATOR  LIGHT"] + rows
     out += ["", "EVENTS"] + ([f"{_t(t)}: {text}" for t, text in events] or ["none"])
     summary.insert(0, "indicator during the table: " + _indicator_text(tl, t_lo, t_hi, now_ns))

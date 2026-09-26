@@ -2,7 +2,7 @@
 
 Find interesting scenes in driving logs with [Jev](https://docs.typesafe.ai/introduction), a fast general-purpose classifier from [TypeSafe AI](https://typesafe.ai/).
 
-> **Status:** proof of concept. v1 reads Autoware rosbags (MCAP) and a Lanelet2 map, and labels the ego vehicle's driving decisions.
+> **Status:** proof of concept. v1 reads Autoware rosbags (MCAP) and a Lanelet2 map, and labels the ego vehicle's driving decisions. No driving data is included: bring your own logs and map.
 
 ## Goal
 
@@ -27,6 +27,57 @@ script  ──────►  Jev  ──────►  scenes
 2. **Jev:** two Choice questions per script (9 lateral labels such as `turn_left`, `u_turn` and `lane_change_right`; 5 longitudinal labels such as `cruising` and `hard_braking`), with the definitions in [`labels.yaml`](labels.yaml). Jev returns a probability for every label.
 3. **Scenes:** consecutive steps with the same labels become one scene with start/end times; short flickers and low-confidence maneuvers are smoothed away.
 
+## Labels
+
+Each script gets two questions. Definitions are plain language in [`labels.yaml`](labels.yaml) (version `jsm-1.0`); edit them or add labels without retraining anything.
+
+| Lateral (what the ego does sideways) | Needs indicator |
+|---|---|
+| `keep_lane`: staying in its lane, including curves and stops | |
+| `turn_left` / `turn_right`: a turn at an intersection (heading change about 45–150°) | LEFT / RIGHT |
+| `u_turn`: turning back the way it came (about 180°) | far side |
+| `lane_change_left` / `lane_change_right`: moving into the neighbor lane | LEFT / RIGHT |
+| `avoidance`: moving sideways to pass a stopped vehicle or obstacle, then returning | |
+| `pull_over`: moving to the road edge and stopping | curb side |
+| `pull_away`: leaving the road edge back into traffic | far side |
+
+| Longitudinal (what the speed does) |
+|---|
+| `stopped`, `accelerating`, `decelerating`, `hard_braking`, `cruising` |
+
+"Curb side" is the side traffic drives on (`traffic_side: left` by default; `--traffic-side right` for e.g. the US), and "far side" is the other one. With `--require-indicator`, a maneuver without its indicator becomes `keep_lane`.
+
+## Example
+
+One step's script (shortened, illustrative values), then the kind of scene it ends up in:
+
+```
+Driving log of the ego vehicle around NOW (left-hand traffic). Times are relative to NOW. ...
+
+LANES
+A: road; left neighbor: B (dashed line, can be crossed); right neighbor: none
+B: road; left neighbor: none; right neighbor: A (dashed line, can be crossed)
+
+TIME   LANE     OFFSET   SPEED     ACCEL       YAW RATE  HEADING  INDICATOR  LIGHT
+t=-2s  B        -0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +0°      off        green
+t=-1s  B        -0.9 m   14 km/h   +0.0 m/s²   -6 °/s    -2°      RIGHT      green
+t=+0s  A        +1.7 m   14 km/h   +0.0 m/s²   +0 °/s    +0°      RIGHT      green   <- NOW
+t=+1s  A        +0.3 m   14 km/h   +0.0 m/s²   +6 °/s    +2°      RIGHT      green
+
+EVENTS
+t=-1.5s: indicator RIGHT on
+t=+0.0s: moves from B into its right neighbor A
+
+OBJECTS AT NOW (up to 8 within 30 m)
+car: 13 m ahead, 3 m left, left neighbor lane, 14 km/h
+```
+
+```json
+{"scene_id": "scene_004", "start_ns": "1767000002750000000", "end_ns": "1767000006250000000",
+ "lateral": "lane_change_right", "longitudinal": "cruising",
+ "lateral_prob": 0.91, "longitudinal_prob": 0.97}
+```
+
 ## Usage
 
 ```bash
@@ -43,11 +94,25 @@ uv run jevsceneminer run <session_dir>... --map lanelet2_map.osm --out out/run1
 uv run jevsceneminer classify out/run1
 uv run jevsceneminer restitch out/run1 --out out/run1b --min-prob 0.5
 
-# Right-hand traffic (e.g. the US): flips which indicator a U-turn, pull-over and pull-away need
-uv run jevsceneminer run ... --traffic-side right
-
 uv run pytest
 ```
+
+Useful options of `run` (see `--help`):
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--step` | 0.5 | seconds between steps (one script and one Jev call each) |
+| `--past` / `--future` | 5 / 10 | seconds before / after NOW in each script's table |
+| `--min-scene` | 2.0 | shorter label runs are merged into a neighbor |
+| `--min-prob` | 0.4 | maneuvers with a lower mean probability become `keep_lane` |
+| `--require-indicator` | off | maneuvers need their indicator (see Labels) |
+| `--traffic-side` | left | side traffic drives on |
+| `--lateral-only` | off | ask only the lateral question (half the cost) |
+| `--topics` | Autoware defaults | YAML with other topic names (see below) |
+
+`classify --strip-map` removes every map-derived fact from saved scripts, to measure how much the map helps.
+
+Jev is billed per input token; `--dry-run` prints an estimate (roughly 2,200 tokens per call: 7,200 calls and about $0.70 per hour of driving at 2 Hz).
 
 If ROS is sourced in your shell, run with `env -u PYTHONPATH` so the venv's packages are used.
 No ROS installation is needed: messages are decoded with the definitions stored in each MCAP file.
@@ -79,6 +144,11 @@ out/run1/
 ├── meta/<session>.json        session span and the settings used
 └── cache/                     Jev answers keyed by script + questions
 ```
+
+## Roadmap
+
+- [nuPlan](https://www.nuscenes.org/nuplan) support (public logs and maps from four cities), with its scenario tags as a reference.
+- An open evaluation: precision / recall and start / end timing against hand-labeled scenes.
 
 ## License
 

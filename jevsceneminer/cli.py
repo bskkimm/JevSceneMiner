@@ -60,7 +60,7 @@ def _sources(args):
                    sp.get("map") or args.map)
 
 
-def _prepare(source, read_kwargs, lanemap, args, out: Path) -> tuple[dict, dict]:
+def _prepare(source, read_kwargs, lanemap, args, out: Path, traffic_side: str) -> tuple[dict, dict]:
     """Read one session, write its scripts (steps), indicator periods and metadata."""
     t1 = time.time()
     session = read_session(source, object_interval_s=min(0.45, args.step * 0.9), topics=args.topic_lists,
@@ -77,7 +77,7 @@ def _prepare(source, read_kwargs, lanemap, args, out: Path) -> tuple[dict, dict]
         times = times[args.first_step:args.first_step + args.max_steps]
     scripts = {}
     for t in times:
-        text = render(timeline, lanemap, t, past_s=args.past, future_s=args.future)
+        text = render(timeline, lanemap, t, past_s=args.past, future_s=args.future, traffic_side=traffic_side)
         if text is not None:
             scripts[t] = text
 
@@ -137,7 +137,7 @@ def cmd_run(args) -> int:
             maps[map_path] = LaneMap.load(map_path)
             print(f"map {map_path}: {len(maps[map_path].lanes)} lanes ({time.time() - t0:.1f} s)", flush=True)
         try:
-            meta, scripts = _prepare(source, read_kwargs, maps[map_path], args, out)
+            meta, scripts = _prepare(source, read_kwargs, maps[map_path], args, out, labels.traffic_side)
         except BagError as exc:
             if not args.keep_going:
                 raise

@@ -95,3 +95,9 @@ def test_the_light_ahead_is_picked_from_all_recognized_groups():
                                       (T0 + 2 * 10**8, {None: "amber"})])
     assert [text for _, text in resolve_lights(session, T0, ahead)] == ["red", "unknown", "amber"]
 
+
+
+def test_script_names_the_traffic_side(lanemap, lane_change_session):
+    tl = build_timeline(lane_change_session, lanemap)
+    assert "(left-hand traffic)" in render(tl, lanemap, T0 + 2 * 10**9)
+    assert "(right-hand traffic)" in render(tl, lanemap, T0 + 2 * 10**9, traffic_side="right")
