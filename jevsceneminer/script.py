@@ -167,7 +167,7 @@ def render(tl: Timeline, lanemap: LaneMap, now_ns: int, past_s: int = 5, future_
         p = tl.lane(i)
         lane = names(p.lane_id) if p is not None else "off map"
         offset = f"{p.offset:+.1f} m" if p is not None else "-"
-        ind = INDICATOR_TEXT.get(tl.indicator_at(t_ns), "off")
+        ind = INDICATOR_TEXT.get(tl.indicator_at(t_ns), "off") if s.has_indicator else "n/a"
         row = (f"t={k:+d}s".ljust(7) + lane.ljust(9) + offset.ljust(9)
                + f"{tl.v[i] * 3.6:.0f} km/h".ljust(10) + f"{tl.accel[i]:+.1f} m/s²".ljust(12)
                + f"{math.degrees(tl.yaw_rate[i]):+.0f} °/s".ljust(10)
@@ -316,6 +316,8 @@ def _route_context(tl: Timeline, lanemap: LaneMap, i_now: int) -> list[str]:
 
 
 def _indicator_text(tl: Timeline, t_lo: int, t_hi: int, now_ns: int) -> str:
+    if not tl.session.has_indicator:
+        return "not recorded in this log"
     """LEFT/RIGHT periods between t_lo and t_hi, e.g. "LEFT from t=-3.2s to t=+4.0s", or "never on"."""
     s = tl.session
     periods, state, start = [], tl.indicator_at(t_lo), t_lo

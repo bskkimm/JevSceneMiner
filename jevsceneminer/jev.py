@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -36,6 +37,7 @@ class Labels:
     lateral_only: bool = False   # ask only the lateral question
     indicator: dict = field(default_factory=dict)   # lateral label -> indicator code it needs (2 | 3)
     traffic_side: str = "left"
+    has_indicator: bool = True   # definitions written for logs that record the turn indicator
 
     def spec(self) -> dict:
         """Plain-JSON form of the questions, used in the cache key."""
@@ -58,25 +60,35 @@ def _sides(traffic_side: str) -> dict[str, str]:
     return {"curb": traffic_side, "far": far, "CURB": traffic_side.upper(), "FAR": far.upper()}
 
 
-def _definitions(entries: dict, sides: dict) -> tuple[dict[str, str], dict[str, int]]:
-    """Label -> definition text (sides filled in), and label -> indicator code it needs."""
+_VARIANT = re.compile(r"\[\[(.*?)(?:\|\|(.*?))?\]\]", re.S)
+
+
+def _text(text: str, sides: dict, has_indicator: bool) -> str:
+    """Fill in the traffic side and pick the [[with||without indicator]] variants."""
+    text = _VARIANT.sub(lambda m: m.group(1) if has_indicator else (m.group(2) or ""), text)
+    return " ".join(text.format(**sides).split())
+
+
+def _definitions(entries: dict, sides: dict, has_indicator: bool) -> tuple[dict[str, str], dict[str, int]]:
+    """Label -> definition text, and label -> indicator code it needs."""
     texts, needs = {}, {}
     for name, entry in entries.items():
         if isinstance(entry, dict):
-            texts[name] = entry["definition"].format(**sides)
+            texts[name] = _text(entry["definition"], sides, has_indicator)
             if entry.get("indicator"):
                 needs[name] = INDICATOR_CODES[sides.get(entry["indicator"], entry["indicator"])]
         else:
-            texts[name] = entry.format(**sides)
+            texts[name] = _text(entry, sides, has_indicator)
     return texts, needs
 
 
-def load_labels(path: Path, lateral_only: bool = False, traffic_side: str | None = None) -> Labels:
+def load_labels(path: Path, lateral_only: bool = False, traffic_side: str | None = None,
+                has_indicator: bool = True) -> Labels:
     doc = yaml.safe_load(Path(path).read_text())
     side = traffic_side or doc.get("traffic_side", "left")
     sides = _sides(side)
-    lateral, needs = _definitions(doc["lateral"]["labels"], sides)
-    longitudinal, _ = _definitions(doc["longitudinal"]["labels"], sides)
+    lateral, needs = _definitions(doc["lateral"]["labels"], sides, has_indicator)
+    longitudinal, _ = _definitions(doc["longitudinal"]["labels"], sides, has_indicator)
     return Labels(
         lateral_only=lateral_only,
         version=str(doc["version"]),
@@ -84,8 +96,9 @@ def load_labels(path: Path, lateral_only: bool = False, traffic_side: str | None
         lateral=lateral,
         longitudinal_instructions=doc["longitudinal"]["instructions"],
         longitudinal=longitudinal,
-        indicator=needs,
+        indicator=needs if has_indicator else {},
         traffic_side=side,
+        has_indicator=has_indicator,
     )
 
 

@@ -6,6 +6,8 @@
 # maneuvers without it. Definitions can say {CURB}/{FAR} (LEFT/RIGHT) and {curb}/{far}
 # (left/right): the curb side is the side traffic drives on, set by ``traffic_side``
 # (left in e.g. Japan, UK, Singapore; right in e.g. the US) or `--traffic-side`.
+# [[with||without]]: the first text is used when the log records the turn indicator,
+# the second (may be empty) when it does not (e.g. nuPlan).
 version: "jsm-1.0"
 traffic_side: left
 
@@ -22,29 +24,29 @@ lateral:
     turn_left:
       indicator: left
       definition: >-
-        Turning left at an intersection with the LEFT indicator on: from the
+        Turning left at an intersection[[ with the LEFT indicator on||]]: from the
         approach, about 30 m before entering the intersection lane (see ROUTE
         CONTEXT), until the heading is steady again after the turn. The heading
         changes a lot (typically 45 to 150 degrees). If the ego stops during the
         turn (waiting for traffic or a light), the turn continues through the
-        stop. The LEFT indicator is required: if it is not on during the maneuver
+        stop.[[ The LEFT indicator is required: if it is not on during the maneuver
         (see the indicator lines in SUMMARY and ROUTE CONTEXT), this is keep_lane,
-        even when the heading changes a lot.
+        even when the heading changes a lot.||]]
     turn_right:
       indicator: right
       definition: >-
-        Turning right at an intersection with the RIGHT indicator on: from the
+        Turning right at an intersection[[ with the RIGHT indicator on||]]: from the
         approach, about 30 m before entering the intersection lane (see ROUTE
         CONTEXT), until the heading is steady again after the turn. The heading
         changes a lot (typically 45 to 150 degrees). If the ego stops during the
         turn (waiting for traffic or a light), the turn continues through the
-        stop. The RIGHT indicator is required: if it is not on during the maneuver
+        stop.[[ The RIGHT indicator is required: if it is not on during the maneuver
         (see the indicator lines in SUMMARY and ROUTE CONTEXT), this is keep_lane,
-        even when the heading changes a lot.
+        even when the heading changes a lot.||]]
     u_turn:
       indicator: far
       definition: >-
-        Turning around to drive back the way it came, with the {FAR} indicator on:
+        Turning around to drive back the way it came[[, with the {FAR} indicator on||]]:
         the heading changes by about 180 degrees (150 degrees or more) in one
         continuous maneuver, at an intersection, a median opening or across the
         road. From the approach until the heading is steady again in the opposite
@@ -54,14 +56,14 @@ lateral:
       indicator: left
       definition: >-
         Moving from its lane into the side-by-side neighbor lane on the left,
-        from when it starts drifting toward that lane until it has settled in it.
-        The LEFT indicator is required; without it, this is keep_lane.
+        from when it starts drifting toward that lane until it has settled in it.[[
+        The LEFT indicator is required; without it, this is keep_lane.||]]
     lane_change_right:
       indicator: right
       definition: >-
         Moving from its lane into the side-by-side neighbor lane on the right,
-        from when it starts drifting toward that lane until it has settled in it.
-        The RIGHT indicator is required; without it, this is keep_lane.
+        from when it starts drifting toward that lane until it has settled in it.[[
+        The RIGHT indicator is required; without it, this is keep_lane.||]]
     avoidance: >-
       Moving sideways to pass a stopped vehicle or obstacle ahead, either within
       its lane or partly leaving it, then returning to its lane. From when it
@@ -70,13 +72,14 @@ lateral:
     pull_over:
       indicator: curb
       definition: >-
-        From when the {CURB} indicator comes on until the ego vehicle stops at the
-        {curb} road edge or shoulder (see next stop in ROUTE CONTEXT).
+        From when [[the {CURB} indicator comes on||it starts moving toward the {curb}
+        road edge]] until the ego vehicle stops at the {curb} road edge or shoulder
+        (see next stop in ROUTE CONTEXT).
     pull_away:
       indicator: far
       definition: >-
-        From starting to move after a stop at the road edge or shoulder, with the
-        {FAR} indicator on, until the ego vehicle is back in the traffic lane.
+        From starting to move after a stop at the road edge or shoulder[[, with the
+        {FAR} indicator on,||]] until the ego vehicle is back in the traffic lane.
 
 longitudinal:
   instructions: >-

@@ -1,4 +1,7 @@
-"""Lanelet2 map lookups in the same x/y frame as the ego pose.
+"""Lane map lookups in the same x/y frame as the ego pose.
+
+``LaneMap`` holds the lanes and does the lane matching; a loader fills it from a map
+file: ``LaneMap.load`` for Lanelet2 (below), ``nuplan_map.load_nuplan_map`` for nuPlan.
 
 Autoware maps store each node's map-frame position in ``local_x`` / ``local_y`` tags.
 The map is loaded so that lanelet2 coordinates equal those tags: every node's lat/lon
@@ -103,17 +106,24 @@ def _rewrite_to_local(osm_path: Path) -> tuple[Path, Origin]:
 
 
 class LaneMap:
-    def __init__(self, lmap, lanes: dict[int, Lane]):
-        self._lmap = lmap
+    def __init__(self, lanes: dict[int, Lane], find_within):
+        """``find_within(x, y, max_distance)`` -> ``[(distance, lane_id), ...]``: the lanes whose
+        area is within ``max_distance`` of the point (distance 0 inside the lane)."""
         self.lanes = lanes
+        self._find_within = find_within
         self._relations: dict[tuple[int, int], str] = {}
 
     @classmethod
     def load(cls, osm_path: Path) -> "LaneMap":
+        """Load a Lanelet2 map (Autoware format, with local_x / local_y node tags)."""
         path, origin = _rewrite_to_local(Path(osm_path))
         # Autoware-only regulatory elements (road_marking, ...) fail to parse; lanes still load.
         lmap, _errors = lanelet2.io.loadRobust(str(path), UtmProjector(origin))
-        return cls(lmap, _build_lanes(lmap))
+
+        def find_within(x, y, max_distance):
+            found = lanelet2.geometry.findWithin2d(lmap.laneletLayer, BasicPoint2d(x, y), max_distance)
+            return [(float(d), ll.id) for d, ll in found]
+        return cls(_build_lanes(lmap), find_within)
 
     # ---- geometry -------------------------------------------------------------
 
@@ -133,12 +143,11 @@ class LaneMap:
 
     def candidates(self, x: float, y: float, yaw: float, max_distance: float = 1.0,
                    max_heading_diff: float = math.radians(60)) -> list[Projection]:
-        found = lanelet2.geometry.findWithin2d(self._lmap.laneletLayer, BasicPoint2d(x, y), max_distance)
         out = []
-        for distance, ll in found:
-            if ll.id not in self.lanes:
+        for distance, lane_id in self._find_within(x, y, max_distance):
+            if lane_id not in self.lanes:
                 continue
-            p = self.project(ll.id, x, y, yaw, float(distance))
+            p = self.project(lane_id, x, y, yaw, distance)
             if abs(p.heading_diff) <= max_heading_diff:
                 out.append(p)
         return out

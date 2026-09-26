@@ -1,4 +1,4 @@
-"""Command line: ``jevsceneminer run`` (bags -> scripts -> Jev -> scenes), ``classify`` and ``restitch``."""
+"""Command line: ``jevsceneminer run`` (logs -> scripts -> Jev -> scenes), ``classify``, ``restitch``, ``score``."""
 
 from __future__ import annotations
 
@@ -14,9 +14,13 @@ import yaml
 
 from . import __version__
 from .bag import INDICATOR_LEFT, INDICATOR_RIGHT, BagError, read_session
+from .evaluate import score
 from .facts import build_timeline
 from .jev import Answer, AnswerCache, JevClassifier, JevError, cache_key, load_labels
 from .lanes import LaneMap
+from .nuplan import read_nuplan
+from .nuplan_map import TRAFFIC_SIDE, find_map, load_nuplan_map
+from .rules import rule_scenes
 from .scenes import Step, session_document, stitch, write_scenes
 from .script import render, strip_map
 
@@ -49,26 +53,60 @@ def indicator_segments(session) -> list[list]:
 
 
 def _sources(args):
-    """(bag source, read_session kwargs, map path) per session: folders, then --spans entries."""
+    """(kind, source, read kwargs, map path) per session: bag folders, --spans entries, --nuplan logs."""
     for d in args.sessions:
-        yield Path(d), {}, args.map
+        yield "bag", Path(d), {}, args.map
     if args.spans:
         for sp in json.loads(Path(args.spans).read_text()):
-            yield ([Path(f) for f in sp["files"]],
+            yield ("bag", [Path(f) for f in sp["files"]],
                    {"start_ns": int(sp["start_s"] * 1e9), "end_ns": int(sp["end_s"] * 1e9),
                     "name": sp["name"], "date": sp["date"]},
                    sp.get("map") or args.map)
+    for spec in args.nuplan or []:
+        yield "nuplan", [Path(p) for p in spec.split(",")], {}, None
 
 
-def _prepare(source, read_kwargs, lanemap, args, out: Path, traffic_side: str) -> tuple[dict, dict]:
-    """Read one session, write its scripts (steps), indicator periods and metadata."""
+def _nuplan_maps_root(args, db: Path) -> Path:
+    """--nuplan-maps, or the ``maps`` folder next to an ancestor of the log (nuPlan's layout)."""
+    if args.nuplan_maps:
+        return Path(args.nuplan_maps)
+    for parent in db.resolve().parents:
+        if (parent / "maps").is_dir():
+            return parent / "maps"
+    raise SystemExit(f"no nuPlan maps folder found above {db}: pass --nuplan-maps")
+
+
+def _read(kind, source, read_kwargs, map_path, args, maps: dict):
+    """(session, lane map, traffic side, extras) for one source; maps are loaded once."""
+    interval = min(0.45, args.step * 0.9)
+    if kind == "nuplan":
+        log = read_nuplan(source, object_interval_s=interval)
+        map_path = find_map(_nuplan_maps_root(args, source[0]), log.location)
+        side = args.traffic_side or TRAFFIC_SIDE.get(log.location, "right")
+        extras = {"location": log.location, "tags": log.tags, "camera": log.camera}
+        loader = load_nuplan_map
+    else:
+        if map_path is None:
+            raise SystemExit("no map: pass --map, or a \"map\" in each --spans entry")
+        log = None
+        side, extras, loader = None, {}, LaneMap.load
+    if map_path not in maps:
+        t0 = time.time()
+        maps[map_path] = loader(map_path)
+        print(f"map {map_path}: {len(maps[map_path].lanes)} lanes ({time.time() - t0:.1f} s)", flush=True)
+    session = log.session if log else read_session(source, object_interval_s=interval, topics=args.topic_lists,
+                                                   **read_kwargs)
+    extras["map"] = str(map_path)
+    return session, maps[map_path], side, extras
+
+
+def _prepare(session, lanemap, traffic_side: str, extras: dict, args, out: Path) -> tuple[dict, dict]:
+    """Write one session's scripts (steps), indicator periods, rule baseline and metadata."""
     t1 = time.time()
-    session = read_session(source, object_interval_s=min(0.45, args.step * 0.9), topics=args.topic_lists,
-                           **read_kwargs)
     timeline = build_timeline(session, lanemap)
     span = (session.end_ns - session.start_ns) / 1e9
-    print(f"{session.date} {session.name}: {span:.0f} s of driving, read in {time.time() - t1:.1f} s "
-          f"(ego {session.topics['ego']}, objects {session.topics['objects']})", flush=True)
+    print(f"{session.date} {session.name}: {span:.0f} s of driving ({time.time() - t1:.1f} s), "
+          f"{', '.join(f'{k} {v}' for k, v in session.topics.items() if k != 'decode_errors')}", flush=True)
 
     step_ns = int(round(args.step * 1e9))
     first = session.start_ns + (-session.start_ns) % step_ns   # steps on a fixed clock grid
@@ -85,13 +123,29 @@ def _prepare(source, read_kwargs, lanemap, args, out: Path, traffic_side: str) -
     for sub in ("steps", "indicator", "meta"):
         (out / sub).mkdir(parents=True, exist_ok=True)
     (out / "indicator" / f"{sid}.json").write_text(json.dumps(indicator_segments(session)))
-    meta = {"date": session.date, "name": session.name, "start_ns": session.start_ns, "end_ns": session.end_ns, "step_s": args.step,
-            "past_s": args.past, "future_s": args.future, "topics": session.topics}
+    meta = {"date": session.date, "name": session.name, "start_ns": session.start_ns, "end_ns": session.end_ns,
+            "step_s": args.step, "past_s": args.past, "future_s": args.future, "topics": session.topics,
+            "traffic_side": traffic_side, "has_indicator": session.has_indicator,
+            "map": extras.get("map"), "location": extras.get("location")}
     (out / "meta" / f"{sid}.json").write_text(json.dumps(meta))
+    for sub in ("tags", "camera"):
+        if extras.get(sub):
+            (out / sub).mkdir(exist_ok=True)
+            (out / sub / f"{sid}.json").write_text(json.dumps(extras[sub]))
+    rules = rule_scenes(timeline, lanemap, list(scripts), args.step, args.min_scene, session.start_ns, session.end_ns)
+    write_scenes(out / "rules", session_document(session.date, session.name, session.start_ns, session.end_ns,
+                                                 "rules", rules, {"name": "jevsceneminer rules", "version": __version__}))
     with open(out / "steps" / f"{sid}.jsonl", "w") as fh:
         for t, text in scripts.items():
             fh.write(json.dumps({"t_ns": t, "script": text}, ensure_ascii=False) + "\n")
     return meta, scripts
+
+
+def _labels_for(args, meta: dict, lateral_only: bool = False):
+    """The questions for one session: its traffic side and whether it has the indicator."""
+    return load_labels(args.labels, lateral_only=lateral_only,
+                       traffic_side=args.traffic_side or meta.get("traffic_side"),
+                       has_indicator=meta.get("has_indicator", True))
 
 
 def _classify(out: Path, meta: dict, scripts: dict, labels, args) -> None:
@@ -125,32 +179,28 @@ def _classify(out: Path, meta: dict, scripts: dict, labels, args) -> None:
 
 
 def cmd_run(args) -> int:
-    labels = load_labels(args.labels, lateral_only=args.lateral_only, traffic_side=args.traffic_side)
     out = Path(args.out)
     maps: dict = {}
     totals = {"calls": 0, "chars": 0, "sessions": 0, "skipped": 0}
-    for source, read_kwargs, map_path in _sources(args):
-        if map_path is None:
-            raise SystemExit("no map: pass --map, or a \"map\" in each --spans entry")
-        if map_path not in maps:
-            t0 = time.time()
-            maps[map_path] = LaneMap.load(map_path)
-            print(f"map {map_path}: {len(maps[map_path].lanes)} lanes ({time.time() - t0:.1f} s)", flush=True)
+    for kind, source, read_kwargs, map_path in _sources(args):
         try:
-            meta, scripts = _prepare(source, read_kwargs, maps[map_path], args, out, labels.traffic_side)
+            session, lanemap, side, extras = _read(kind, source, read_kwargs, map_path, args, maps)
         except BagError as exc:
             if not args.keep_going:
                 raise
             totals["skipped"] += 1
             print(f"  [skip] {exc}", flush=True)
             continue
+        if side is None:
+            side = load_labels(args.labels).traffic_side if not args.traffic_side else args.traffic_side
+        meta, scripts = _prepare(session, lanemap, side, extras, args, out)
         totals["calls"] += len(scripts)
         totals["chars"] += sum(len(x) for x in scripts.values())
         totals["sessions"] += 1
         if args.dry_run:
             print(f"  dry run: {len(scripts)} scripts written", flush=True)
         else:
-            _classify(out, meta, scripts, labels, args)
+            _classify(out, meta, scripts, _labels_for(args, meta, args.lateral_only), args)
 
     # Script chars / 4, plus the question definitions sent with every call (measured ~1.4k tokens).
     est_tokens = totals["chars"] / 4 + totals["calls"] * 1400
@@ -161,7 +211,6 @@ def cmd_run(args) -> int:
 
 def cmd_classify(args) -> int:
     """Jev + stitching for every session a `run --dry-run` prepared under <out>."""
-    labels = load_labels(args.labels, lateral_only=args.lateral_only, traffic_side=args.traffic_side)
     out = Path(args.out)
     failed = []
     for meta_path in sorted((out / "meta").glob("*.json")):
@@ -173,7 +222,7 @@ def cmd_classify(args) -> int:
         if args.strip_map:
             scripts = {t: strip_map(x) for t, x in scripts.items()}
         try:
-            _classify(out, meta, scripts, labels, args)
+            _classify(out, meta, scripts, _labels_for(args, meta, args.lateral_only), args)
         except JevError as exc:     # answers so far are cached: re-running finishes the session
             failed.append(sid)
             print(f"  [failed] {exc}", flush=True)
@@ -186,13 +235,13 @@ def cmd_classify(args) -> int:
 def cmd_restitch(args) -> int:
     """Rebuild scenes from the saved per-step answers with other settings (no Jev calls)."""
     src, dst = Path(args.src), Path(args.out)
-    labels = load_labels(args.labels, traffic_side=args.traffic_side)
     for steps_path in sorted((src / "steps").glob("*.jsonl")):
         rows = [json.loads(line) for line in steps_path.read_text().splitlines() if line.strip()]
         if not rows or "lateral" not in rows[0]:
             continue   # dry-run output has no answers
         sid = steps_path.stem
         meta = json.loads((src / "meta" / f"{sid}.json").read_text())
+        labels = _labels_for(args, meta)
         old = src / "scenes" / f"{sid}.json"
         generator = dict(json.loads(old.read_text()).get("generator") or {}) if old.exists() else {}
         steps = [Step(r["t_ns"], Answer(r["lateral"], r["lateral_probs"], r["longitudinal"], r["longitudinal_probs"],
@@ -207,9 +256,25 @@ def cmd_restitch(args) -> int:
         write_scenes(dst, session_document(meta["date"], meta["name"], meta["start_ns"], meta["end_ns"],
                                            labels.version, scenes, generator))
         print(f"{meta['date']} {meta['name']}: {len(scenes)} scenes")
-    for sub in ("meta", "indicator"):
+    for sub in ("meta", "indicator", "tags", "camera", "rules"):
         if (src / sub).exists():
             shutil.copytree(src / sub, dst / sub, dirs_exist_ok=True)
+    return 0
+
+
+def cmd_score(args) -> int:
+    out = Path(args.out)
+    runs = {}
+    for spec in args.run or ["jev=scenes", "rules=rules/scenes"]:
+        name, _, folder = spec.partition("=")
+        path = Path(folder) if Path(folder).is_absolute() else out / folder
+        if path.is_dir() and any(path.glob("*.json")):
+            runs[name] = path
+    if not runs:
+        raise SystemExit(f"no scenes to score under {out}")
+    report_dir = Path(args.report) if args.report else out / "report"
+    score(out, Path(args.gt) if args.gt else None, runs, report_dir)
+    print((report_dir / "report.md").read_text())
     return 0
 
 
@@ -223,6 +288,10 @@ def main(argv=None) -> int:
     r.add_argument("--spans", default=None,
                    help="JSON list of sessions as {name, date, start_s, end_s, files[, map]}")
     r.add_argument("--map", default=None, help="lanelet2_map.osm (unless every --spans entry has one)")
+    r.add_argument("--nuplan", action="append", metavar="DB[,DB...]",
+                   help="a nuPlan log .db (repeatable); comma-join consecutive slices to read them as one session")
+    r.add_argument("--nuplan-maps", default=None,
+                   help="nuPlan maps folder (default: the 'maps' folder above the log, as nuPlan unpacks)")
     r.add_argument("--topics", default=None,
                    help="YAML {role: [topic, ...]} overriding the default Autoware topics "
                         "(roles: ego, objects, lights, indicator)")
@@ -230,7 +299,7 @@ def main(argv=None) -> int:
     r.add_argument("--out", required=True)
     r.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
     r.add_argument("--traffic-side", choices=("left", "right"), default=None,
-                   help="side traffic drives on (default: labels.yaml's traffic_side)")
+                   help="side traffic drives on (default: the nuPlan city, else labels.yaml's traffic_side)")
     r.add_argument("--step", type=float, default=0.5, help="seconds between NOW steps (0.5 = 2 Hz)")
     r.add_argument("--past", type=int, default=5, help="seconds of PAST in each script's table")
     r.add_argument("--future", type=int, default=10, help="seconds of FUTURE in each script's table")
@@ -272,6 +341,14 @@ def main(argv=None) -> int:
     t.add_argument("--min-prob", type=float, default=0.4)
     t.add_argument("--require-indicator", action="store_true")
     t.set_defaults(func=cmd_restitch)
+
+    sc = sub.add_parser("score", help="score runs against GT scenes and nuPlan's scenario tags")
+    sc.add_argument("out", help="an --out folder of `jevsceneminer run`")
+    sc.add_argument("--gt", default=None, help="folder of GT scene files (<session>.json, same format as scenes/)")
+    sc.add_argument("--run", action="append", metavar="NAME=FOLDER",
+                    help="runs to score (default: jev=scenes rules=rules/scenes, relative to OUT)")
+    sc.add_argument("--report", default=None, help="report folder (default: OUT/report)")
+    sc.set_defaults(func=cmd_score)
 
     args = p.parse_args(argv)
     if args.command == "run":

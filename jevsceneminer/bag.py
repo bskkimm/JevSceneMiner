@@ -77,6 +77,7 @@ class Session:
     indicator_t: np.ndarray
     indicator: np.ndarray  # INDICATOR_OFF / INDICATOR_LEFT / INDICATOR_RIGHT
     topics: dict | None = None  # role -> topic actually used
+    has_indicator: bool = True  # False when the log does not record the turn indicator
 
     @property
     def start_ns(self) -> int:
