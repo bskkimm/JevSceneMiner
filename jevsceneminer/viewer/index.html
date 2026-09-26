@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JevSceneMiner Viewer</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1d2330; --muted: #6b7385; --line: #d9dde5;
+    --lane: #e4e7ee; --lane-x: #eef0f5; --lane-edge: #b9c0cf; --accent: #2f6fde;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171d; --panel: #1c2028; --ink: #e5e8ef; --muted: #98a0b3; --line: #313745;
+      --lane: #2b3140; --lane-x: #252a36; --lane-edge: #4a5264; --accent: #6b9cf0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171d; --panel: #1c2028; --ink: #e5e8ef; --muted: #98a0b3; --line: #313745;
+    --lane: #2b3140; --lane-x: #252a36; --lane-edge: #4a5264; --accent: #6b9cf0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 16px;
+           background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 15px; margin: 0 12px 0 0; }
+  select, button { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+                   border-radius: 6px; padding: 3px 8px; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #clock { font-variant-numeric: tabular-nums; min-width: 12em; }
+  #status { color: var(--muted); margin-left: auto; }
+  main { padding: 12px 16px; display: grid; gap: 12px; }
+  .top { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .panel h2 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 0; padding: 6px 10px;
+              border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; }
+  #cam { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; display: block; }
+  #camnote, #bevnote { color: var(--muted); padding: 8px 10px; }
+  canvas { display: block; width: 100%; }
+  #bev { aspect-ratio: 4 / 3; }
+  .bottom { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; }
+  pre#script { margin: 0; padding: 10px; font: 11.5px/1.35 ui-monospace, monospace; white-space: pre;
+               overflow: auto; max-height: 460px; }
+  #events { max-height: 460px; overflow: auto; }
+  #events table { width: 100%; border-collapse: collapse; }
+  #events td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  #events tr { cursor: pointer; }
+  #events tr:hover { background: var(--bg); }
+  .chip { display: inline-block; padding: 0 6px; border-radius: 4px; color: #fff; font-size: 11px; }
+  .miss { color: #d14343; } .hit { color: #2e9a52; } .fa { color: #c47f12; }
+  #legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
+  .help { color: var(--muted); font-size: 12px; padding: 0 10px 8px; }
+  @media (max-width: 900px) { .top, .bottom { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>JevSceneMiner</h1>
+  <select id="session" aria-label="Session"></select>
+  <button id="play" title="Space">▶ Play</button>
+  <select id="speed" aria-label="Playback speed"><option>1</option><option selected>2</option><option>4</option><option>8</option></select>
+  <span id="clock"></span>
+  <span id="status"></span>
+</header>
+<main>
+  <div class="top">
+    <div class="panel"><h2>Front camera</h2><img id="cam" alt="front camera frame"><div id="camnote"></div></div>
+    <div class="panel"><h2>Bird's-eye view <span id="light"></span></h2><canvas id="bev"></canvas><div id="bevnote"></div></div>
+  </div>
+  <div class="panel">
+    <h2>Timeline
+      <span style="margin-left:auto"></span>
+      <label>GT brush: <select id="brushLat"></select></label>
+      <select id="brushLon"></select>
+      <select id="gtFrom"><option value="">start GT from…</option></select>
+      <button id="undo" title="z">Undo</button>
+      <button id="save">Save GT</button>
+    </h2>
+    <canvas id="tl"></canvas>
+    <div id="legend"></div>
+    <div class="help">Click to move the cursor · wheel to zoom · shift+wheel or drag the overview to pan ·
+      ←/→ 0.5 s (shift: 5 s) · space play · drag on a GT row to paint the brush label · z undo</div>
+  </div>
+  <div class="bottom">
+    <div class="panel"><h2>Script Jev saw (nearest step)</h2><pre id="script"></pre></div>
+    <div class="panel"><h2>Maneuvers
+      <select id="evFilter"><option value="all">all</option><option value="miss">missed</option>
+        <option value="fa">false alarms</option></select>
+      <select id="evLabel"><option value="">all labels</option></select></h2>
+      <div id="events"></div></div>
+  </div>
+</main>
+<script>
+"use strict";
+const LAT = ["keep_lane", "turn_left", "turn_right", "u_turn", "lane_change_left", "lane_change_right",
+             "avoidance", "pull_over", "pull_away"];
+const LON = ["stopped", "accelerating", "decelerating", "hard_braking", "cruising"];
+const COLORS = {
+  keep_lane: "#9aa3b5", turn_left: "#2f6fde", turn_right: "#d9534f", u_turn: "#7b4fd6",
+  lane_change_left: "#1aa39a", lane_change_right: "#e08a1e", avoidance: "#c2449b", pull_over: "#6c8c1c",
+  pull_away: "#8a5a2b", stopped: "#5b6275", accelerating: "#3aa55d", decelerating: "#e0b21e",
+  hard_braking: "#d14343", cruising: "#b9c1d3",
+};
+const KIND_SIZE = { car: [4.6, 1.9], truck: [8, 2.5], bus: [11, 2.6], bicycle: [1.8, 0.6],
+                    pedestrian: [0.6, 0.6], "traffic cone": [0.4, 0.4], barrier: [1.5, 0.4] };
+const KIND_COLOR = { car: "#2f6fde", pedestrian: "#d9534f", bicycle: "#e08a1e", "traffic cone": "#e0b21e" };
+
+const $ = (id) => document.getElementById(id);
+const S = { sid: null, data: null, bev: null, t: 0, v0: 0, v1: 120, playing: false,
+            gt: null, undo: [], dirty: false, t0: 0, t1: 0, runs: [] };
+
+// ---------- helpers ----------
+const sec = (ns) => Number(ns) / 1e9;
+const nsStr = (s) => (BigInt(Math.round(s * 1e6)) * 1000n).toString();
+function bisect(arr, x, key = (v) => v) {          // last index with key(arr[i]) <= x
+  let lo = 0, hi = arr.length - 1, ans = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (key(arr[m]) <= x) { ans = m; lo = m + 1; } else hi = m - 1; }
+  return ans;
+}
+function nearest(arr, x, key = (v) => v) {
+  const i = bisect(arr, x, key);
+  if (i < 0) return arr.length ? 0 : -1;
+  if (i + 1 < arr.length && Math.abs(key(arr[i + 1]) - x) < Math.abs(key(arr[i]) - x)) return i + 1;
+  return i;
+}
+function spansOf(doc, key) {                          // merged [a, b, label] in seconds
+  const out = [];
+  for (const s of (doc && doc.scenes) || []) {
+    const a = sec(s.start_ns), b = sec(s.end_ns), l = s[key];
+    const last = out[out.length - 1];
+    if (last && last[2] === l && Math.abs(a - last[1]) < 1e-3) last[1] = b; else out.push([a, b, l]);
+  }
+  return out;
+}
+const maneuvers = (sp) => sp.filter((s) => s[2] !== "keep_lane");
+const mainRun = () => { const n = S.runs.find((r) => S.data.runs[r]); return n ? [n, S.data.runs[n]] : [null, null]; };
+const overlap = (a, b) => Math.min(a[1], b[1]) - Math.max(a[0], b[0]);
+const fmt = (s) => { const d = s - S.t0; const m = Math.floor(d / 60); return `${m}:${(d - 60 * m).toFixed(1).padStart(4, "0")}`; };
+
+// ---------- loading ----------
+async function init() {
+  const r = await (await fetch("/api/sessions")).json();
+  S.runs = r.runs;
+  for (const s of r.sessions) $("session").add(new Option(`${s.location || s.date} · ${s.name}`, s.sid));
+  for (const l of LAT) $("brushLat").add(new Option(l, l));
+  for (const l of LON) $("brushLon").add(new Option(l, l));
+  for (const l of LAT.slice(1)) $("evLabel").add(new Option(l, l));
+  for (const n of S.runs) $("gtFrom").add(new Option(`start GT from ${n}`, n));
+  $("brushLon").add(new Option("(lateral only)", ""), 0); $("brushLon").value = "";
+  $("legend").innerHTML = [...LAT, ...LON].map((l) => `<span class="chip" style="background:${COLORS[l]}">${l}</span>`).join("");
+  const hash = new URLSearchParams(location.hash.slice(1));
+  if (hash.get("s")) $("session").value = hash.get("s");
+  await load($("session").value);
+  if (hash.get("t")) { const t = S.t0 + +hash.get("t"); setTime(t); centerView(t); }
+}
+
+async function load(sid) {
+  if (S.dirty && !confirm("Unsaved GT edits will be lost. Continue?")) { $("session").value = S.sid; return; }
+  S.sid = sid; S.bev = null; S.dirty = false; S.undo = [];
+  history.replaceState(null, "", `#s=${encodeURIComponent(sid)}`);   // add &t=<seconds> to open at a time
+  status("loading…");
+  S.data = await (await fetch(`/api/session/${encodeURIComponent(sid)}`)).json();
+  const m = S.data.meta;
+  S.t0 = sec(m.start_ns); S.t1 = sec(m.end_ns);
+  S.t = S.t0; S.v0 = S.t0; S.v1 = Math.min(S.t1, S.t0 + 120);
+  S.gt = S.data.gt ? { lat: spansOf(S.data.gt, "lateral"), lon: spansOf(S.data.gt, "longitudinal") } : { lat: [], lon: [] };
+  S.probs = S.data.steps.filter((r) => r.lateral).map((r) => [r.t_ns / 1e9, r.lateral_probs[r.lateral] || 0, r.lateral]);
+  S.camTimes = S.data.camera.map((t) => t / 1e9);
+  $("camnote").textContent = S.camTimes.length ? "" : "No camera frames for this session (pass --sensor-root for nuPlan).";
+  $("save").disabled = !S.data.gt_writable;
+  $("save").title = S.data.gt_writable ? "Save to the --gt folder" : "Start the viewer with --gt to save";
+  status(`${S.data.steps.length} steps · ${m.traffic_side || "?"}-hand traffic · indicator ${m.has_indicator === false ? "not recorded" : "recorded"}`);
+  drawAll(); renderEvents(); loadScript();
+  $("bevnote").textContent = "building the map view (first time takes ~15 s)…"; drawBev();
+  fetch(`/api/bev/${encodeURIComponent(sid)}`).then((r) => r.json()).then((b) => {
+    if (sid !== S.sid) return;
+    S.bev = b; $("bevnote").textContent = b.available ? "" : b.reason; drawBev();
+  });
+}
+const status = (t) => { $("status").textContent = t; };
+
+// ---------- timeline ----------
+const ROWS = [];   // built in drawTimeline: {name, y, h, kind}
+function rowSpec() {
+  const rows = [{ id: "overview", label: "overview", h: 14 }, { id: "gt:lat", label: "GT lateral", h: 18 },
+                { id: "gt:lon", label: "GT speed", h: 12 }];
+  for (const n of S.runs) {
+    rows.push({ id: `${n}:lat`, label: `${n} lateral`, h: 18 }, { id: `${n}:lon`, label: `${n} speed`, h: 12 });
+    if (n === "jev") rows.push({ id: "prob", label: "Jev prob", h: 34 });
+  }
+  rows.push({ id: "tags", label: "nuPlan tags", h: 14 }, { id: "ind", label: "indicator", h: 10 });
+  return rows;
+}
+function drawTimeline() {
+  const cv = $("tl"), W = cv.clientWidth, L = 110, rows = rowSpec();
+  let y = 6; ROWS.length = 0;
+  for (const r of rows) { ROWS.push({ ...r, y }); y += r.h + 5; }
+  const H = y + 4, dpr = devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const css = getComputedStyle(document.documentElement);
+  const ink = css.getPropertyValue("--ink"), muted = css.getPropertyValue("--muted"), line = css.getPropertyValue("--line");
+  const X = (t) => L + ((t - S.v0) / (S.v1 - S.v0)) * (W - L - 8);
+  const OX = (t) => L + ((t - S.t0) / (S.t1 - S.t0)) * (W - L - 8);
+  g.font = "11px system-ui"; g.textBaseline = "middle";
+  const bars = (sp, r, xf = X) => {
+    for (const [a, b, l] of sp) {
+      const x0 = Math.max(L, xf(a)), x1 = Math.min(W - 8, xf(b));
+      if (x1 <= x0) continue;
+      g.fillStyle = COLORS[l] || "#888"; g.fillRect(x0, r.y, x1 - x0, r.h);
+      if (r.h >= 18 && x1 - x0 > 60 && l !== "keep_lane") { g.fillStyle = "#fff"; g.fillText(l, x0 + 4, r.y + r.h / 2); }
+    }
+  };
+  for (const r of ROWS) {
+    g.fillStyle = muted; g.fillText(r.label, 4, r.y + r.h / 2);
+    g.strokeStyle = line; g.strokeRect(L + 0.5, r.y + 0.5, W - L - 8, r.h);
+    const [who, key] = r.id.split(":");
+    if (r.id === "overview") {
+      bars(spansOf(mainRun()[1], "lateral"), r, OX);
+      g.strokeStyle = ink; g.lineWidth = 2; g.strokeRect(OX(S.v0), r.y - 1, OX(S.v1) - OX(S.v0), r.h + 2); g.lineWidth = 1;
+    } else if (who === "gt") {
+      bars(key === "lat" ? S.gt.lat : S.gt.lon, r);
+      if (!S.gt.lat.length && !S.gt.lon.length) { g.fillStyle = muted; g.fillText("no GT yet: paint here, or “start GT from…”", L + 6, r.y + r.h / 2); }
+    } else if (key === "lat" || key === "lon") {
+      bars(spansOf(S.data.runs[who], key === "lat" ? "lateral" : "longitudinal"), r);
+    } else if (r.id === "prob") {
+      g.strokeStyle = line; g.beginPath(); g.moveTo(L, r.y + r.h / 2); g.lineTo(W - 8, r.y + r.h / 2); g.stroke();
+      for (const [t, p, l] of S.probs) {
+        if (t < S.v0 || t > S.v1) continue;
+        g.fillStyle = COLORS[l] || "#888"; g.fillRect(X(t) - 1, r.y + r.h * (1 - p), 2.5, 2.5);
+      }
+    } else if (r.id === "tags") {
+      for (const [tn, kind] of S.data.tags) {
+        const t = tn / 1e9;
+        if (t < S.v0 || t > S.v1 || kind === "stationary" || kind.endsWith("magnitude_speed")) continue;
+        g.fillStyle = kind.includes("left") ? COLORS.turn_left : kind.includes("right") ? COLORS.turn_right : muted;
+        g.fillRect(X(t), r.y + 2, 1.5, r.h - 4);
+      }
+    } else if (r.id === "ind") {
+      for (const [a, b, st] of S.data.indicator) {
+        g.fillStyle = st === 2 ? COLORS.turn_left : COLORS.turn_right; g.fillRect(X(a), r.y, Math.max(1, X(b) - X(a)), r.h);
+      }
+      if (S.data.meta.has_indicator === false) { g.fillStyle = muted; g.fillText("not recorded", L + 6, r.y + r.h / 2); }
+    }
+  }
+  const cx = X(S.t);
+  if (cx >= L) { g.strokeStyle = ink; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx, ROWS[1].y - 3); g.lineTo(cx, H - 2); g.stroke(); g.lineWidth = 1; }
+  if (S.drag && S.drag.row.startsWith("gt:")) {
+    g.fillStyle = "rgba(47,111,222,.35)"; const r = ROWS.find((q) => q.id === S.drag.row);
+    g.fillRect(X(Math.min(S.drag.a, S.drag.b)), r.y, Math.abs(X(S.drag.b) - X(S.drag.a)), r.h);
+  }
+  S.tlGeom = { L, W, X, OX };
+}
+
+function tlEvent(ev) {
+  const cv = $("tl"), rect = cv.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+  const { L, W } = S.tlGeom;
+  const row = ROWS.find((r) => y >= r.y - 2 && y <= r.y + r.h + 2);
+  const frac = Math.min(1, Math.max(0, (x - L) / (W - L - 8)));
+  return { row: row ? row.id : null, t: S.v0 + frac * (S.v1 - S.v0), to: S.t0 + frac * (S.t1 - S.t0), x };
+}
+$("tl").addEventListener("mousedown", (ev) => {
+  const e = tlEvent(ev);
+  if (e.x < S.tlGeom.L) return;
+  if (e.row === "overview") { S.drag = { row: "overview" }; centerView(e.to); return; }
+  if (e.row && e.row.startsWith("gt:") && (e.row === "gt:lat" || $("brushLon").value)) { S.drag = { row: e.row, a: e.t, b: e.t }; return; }
+  setTime(e.t);
+});
+addEventListener("mousemove", (ev) => {
+  if (!S.drag) return;
+  const e = tlEvent(ev);
+  if (S.drag.row === "overview") centerView(e.to); else { S.drag.b = e.t; drawTimeline(); }
+});
+addEventListener("mouseup", () => {
+  const d = S.drag; S.drag = null;
+  if (!d || d.row === "overview") return;
+  const a = Math.min(d.a, d.b), b = Math.max(d.a, d.b);
+  if (b - a < 0.2) { setTime(d.a); return; }
+  pushUndo();
+  if (d.row === "gt:lat") S.gt.lat = paint(S.gt.lat, a, b, $("brushLat").value);
+  else S.gt.lon = paint(S.gt.lon, a, b, $("brushLon").value);
+  S.dirty = true; drawTimeline(); renderEvents();
+});
+$("tl").addEventListener("wheel", (ev) => {
+  ev.preventDefault();
+  const e = tlEvent(ev), span = S.v1 - S.v0;
+  if (ev.shiftKey) { const d = (ev.deltaY + ev.deltaX) / 500 * span; setView(S.v0 + d, S.v1 + d); return; }
+  const k = ev.deltaY > 0 ? 1.25 : 0.8, ns = Math.min(S.t1 - S.t0, Math.max(10, span * k));
+  const f = (e.t - S.v0) / span; setView(e.t - f * ns, e.t - f * ns + ns);
+}, { passive: false });
+function setView(a, b) {
+  const span = b - a; a = Math.max(S.t0, Math.min(a, S.t1 - span)); S.v0 = a; S.v1 = a + span; drawTimeline();
+}
+const centerView = (t) => { const h = (S.v1 - S.v0) / 2; setView(t - h, t + h); };
+
+// ---------- GT editing ----------
+function paint(sp, a, b, label) {
+  const out = [];
+  for (const [x, y, l] of sp) {
+    if (y <= a || x >= b) { out.push([x, y, l]); continue; }
+    if (x < a) out.push([x, a, l]);
+    if (y > b) out.push([b, y, l]);
+  }
+  out.push([a, b, label]); out.sort((p, q) => p[0] - q[0]);
+  const merged = [];
+  for (const s of out) {
+    const last = merged[merged.length - 1];
+    if (last && last[2] === s[2] && s[0] - last[1] < 1e-3) last[1] = Math.max(last[1], s[1]); else merged.push([...s]);
+  }
+  return merged;
+}
+function pushUndo() { S.undo.push(JSON.stringify(S.gt)); if (S.undo.length > 100) S.undo.shift(); }
+$("undo").onclick = () => { if (S.undo.length) { S.gt = JSON.parse(S.undo.pop()); S.dirty = true; drawTimeline(); renderEvents(); } };
+$("gtFrom").onchange = () => {
+  const n = $("gtFrom").value; $("gtFrom").value = "";
+  if (!n || ((S.gt.lat.length || S.gt.lon.length) && !confirm(`Replace the GT with ${n}?`))) return;
+  pushUndo();
+  S.gt = { lat: spansOf(S.data.runs[n], "lateral"), lon: spansOf(S.data.runs[n], "longitudinal") };
+  S.dirty = true; drawTimeline(); renderEvents();
+};
+function gtDocument() {
+  const cuts = new Set([S.t0, S.t1]);
+  for (const [a, b] of [...S.gt.lat, ...S.gt.lon]) { cuts.add(Math.max(S.t0, a)); cuts.add(Math.min(S.t1, b)); }
+  const ts = [...cuts].sort((a, b) => a - b), at = (sp, t) => { const s = sp.find((q) => q[0] <= t && t < q[1]); return s ? s[2] : null; };
+  const scenes = [];
+  for (let i = 0; i + 1 < ts.length; i++) {
+    const a = ts[i], b = ts[i + 1], mid = (a + b) / 2;
+    if (b - a < 1e-3) continue;
+    const lat = at(S.gt.lat, mid), lon = at(S.gt.lon, mid);
+    if (!lat && !lon) continue;
+    const last = scenes[scenes.length - 1];
+    if (last && last.lateral === (lat || "keep_lane") && last.longitudinal === (lon || "cruising") && last.end_ns === nsStr(a)) { last.end_ns = nsStr(b); continue; }
+    scenes.push({ scene_id: "", start_ns: nsStr(a), end_ns: nsStr(b), lateral: lat || "keep_lane", longitudinal: lon || "cruising" });
+  }
+  scenes.forEach((s, k) => { s.scene_id = `scene_${String(k + 1).padStart(3, "0")}`; });
+  const m = S.data.meta;
+  return { date: m.date, session: m.name, start_ns: String(m.start_ns), end_ns: String(m.end_ns),
+           labels_version: "gt", generator: { name: "jevsceneminer viewer", edited: new Date().toISOString() }, scenes };
+}
+$("save").onclick = async () => {
+  const r = await fetch(`/api/gt/${encodeURIComponent(S.sid)}`, { method: "PUT", body: JSON.stringify(gtDocument()) });
+  const j = await r.json();
+  if (r.ok) { S.dirty = false; status(`saved ${j.saved}`); } else status(`not saved: ${j.error}`);
+};
+addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+// ---------- maneuver list ----------
+function renderEvents() {
+  const filt = $("evFilter").value, lab = $("evLabel").value;
+  const [name, run] = mainRun();
+  const jev = maneuvers(spansOf(run, "lateral"));
+  const gt = maneuvers(S.gt.lat), rows = [];
+  const used = new Set();
+  for (const g of gt) {
+    const k = jev.findIndex((j, i) => !used.has(i) && j[2] === g[2] && overlap(j, g) >= 0.5);
+    if (k >= 0) used.add(k);
+    rows.push({ s: g, kind: k >= 0 ? "hit" : "miss", note: k >= 0 ? `${name} ${(jev[k][0] - g[0]) >= 0 ? "+" : ""}${(jev[k][0] - g[0]).toFixed(1)} s` : `${name} missed` });
+  }
+  jev.forEach((j, i) => { if (!used.has(i)) rows.push({ s: j, kind: gt.length ? "fa" : "", note: gt.length ? `${name} false alarm` : name }); });
+  rows.sort((a, b) => a.s[0] - b.s[0]);
+  const shown = rows.filter((r) => (filt === "all" || r.kind === filt) && (!lab || r.s[2] === lab));
+  $("events").innerHTML = `<table>${shown.map((r) => `<tr data-t="${r.s[0]}"><td>${fmt(r.s[0])}</td>
+    <td><span class="chip" style="background:${COLORS[r.s[2]]}">${r.s[2]}</span></td><td>${(r.s[1] - r.s[0]).toFixed(1)} s</td>
+    <td class="${r.kind}">${r.note}</td></tr>`).join("")}</table>` + (shown.length ? "" : `<p class="help">Nothing to show.</p>`);
+  for (const tr of $("events").querySelectorAll("tr")) tr.onclick = () => { const t = +tr.dataset.t; setTime(t); centerView(t); };
+}
+$("evFilter").onchange = renderEvents; $("evLabel").onchange = renderEvents;
+
+// ---------- bird's-eye view ----------
+function drawBev() {
+  const cv = $("bev"), W = cv.clientWidth, H = W * 0.75, dpr = devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const css = getComputedStyle(document.documentElement);
+  g.fillStyle = css.getPropertyValue("--panel"); g.fillRect(0, 0, W, H);
+  const b = S.bev;
+  if (!b || !b.available) return;
+  const k = nearest(b.track, S.t, (r) => r[0] / 1e9); if (k < 0) return;
+  const [, ex, ey, eyaw] = b.track[k], scale = W / 90;       // 90 m across
+  // heading-up: rotate the world by (pi/2 - yaw) around the ego, ego at 65% height
+  const c = Math.cos(Math.PI / 2 - eyaw), s = Math.sin(Math.PI / 2 - eyaw);
+  const P = (x, y) => { const dx = x - ex, dy = y - ey; return [W / 2 + (dx * c - dy * s) * scale, H * 0.65 - (dx * s + dy * c) * scale]; };
+  const reach = 80;
+  for (const lane of b.lanes) {
+    const xy = lane.xy;
+    if (Math.abs(xy[0] - ex) > reach + 200 || Math.abs(xy[1] - ey) > reach + 200) continue;
+    g.beginPath();
+    for (let i = 0; i < xy.length; i += 2) { const [px, py] = P(xy[i], xy[i + 1]); i ? g.lineTo(px, py) : g.moveTo(px, py); }
+    g.closePath(); g.fillStyle = css.getPropertyValue(lane.intersection ? "--lane-x" : "--lane"); g.fill();
+    g.strokeStyle = css.getPropertyValue("--lane-edge"); g.lineWidth = 0.6; g.stroke();
+  }
+  const path = (from, to, color) => {
+    g.beginPath(); g.strokeStyle = color; g.lineWidth = 2;
+    for (let i = Math.max(0, from); i < Math.min(b.track.length, to); i++) { const [px, py] = P(b.track[i][1], b.track[i][2]); i === Math.max(0, from) ? g.moveTo(px, py) : g.lineTo(px, py); }
+    g.stroke();
+  };
+  path(k - 50, k + 1, "rgba(120,128,145,.8)"); path(k, k + 100, "rgba(47,111,222,.55)");
+  const box = (x, y, yaw, len, wid, color) => {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), pts = [[len / 2, wid / 2], [len / 2, -wid / 2], [-len / 2, -wid / 2], [-len / 2, wid / 2]];
+    g.beginPath(); pts.forEach(([u, v], i) => { const [px, py] = P(x + u * cy - v * sy, y + u * sy + v * cy); i ? g.lineTo(px, py) : g.moveTo(px, py); });
+    g.closePath(); g.fillStyle = color; g.fill();
+  };
+  const j = nearest(b.objects, S.t, (r) => r[0] / 1e9);
+  if (j >= 0 && Math.abs(b.objects[j][0] / 1e9 - S.t) < 1.0)
+    for (const [kind, x, y, yaw, v] of b.objects[j][1]) {
+      if (Math.hypot(x - ex, y - ey) > reach) continue;
+      const [len, wid] = KIND_SIZE[kind] || [1, 1];
+      box(x, y, yaw, len, wid, KIND_COLOR[kind] || "#8a90a0");
+    }
+  box(ex, ey, eyaw, 4.8, 2.0, "#111");
+  g.fillStyle = "#fff"; const [hx, hy] = P(ex + 1.8 * Math.cos(eyaw), ey + 1.8 * Math.sin(eyaw)); g.beginPath(); g.arc(hx, hy, 2.5, 0, 7); g.fill();
+  g.fillStyle = css.getPropertyValue("--muted"); g.font = "11px system-ui"; g.fillText("10 m", 10, H - 12);
+  g.fillRect(10, H - 8, 10 * scale, 2);
+}
+
+// ---------- cursor, camera, script ----------
+function setTime(t) {
+  S.t = Math.max(S.t0, Math.min(S.t1, t));
+  if (S.t < S.v0 || S.t > S.v1) centerView(S.t);
+  drawAll(); loadScriptSoon();
+}
+function drawAll() {
+  $("clock").textContent = `${fmt(S.t)} / ${fmt(S.t1)}  ·  ${new Date(S.t * 1000).toISOString().slice(11, 22)} UTC`;
+  drawTimeline(); drawBev(); showCamera();
+}
+let camIdx = -1, camBusy = false;
+function showCamera() {
+  if (!S.camTimes || !S.camTimes.length) { $("cam").removeAttribute("src"); return; }
+  const i = nearest(S.camTimes, S.t);
+  if (i === camIdx || camBusy) return;
+  camIdx = i; camBusy = true;
+  $("cam").onload = $("cam").onerror = () => { camBusy = false; if (nearest(S.camTimes, S.t) !== camIdx) showCamera(); };
+  $("cam").src = `/camera/${encodeURIComponent(S.sid)}/${i}`;
+}
+let scriptTimer = null, scriptFor = null;
+function loadScriptSoon() { clearTimeout(scriptTimer); scriptTimer = setTimeout(loadScript, S.playing ? 400 : 120); }
+async function loadScript() {
+  const steps = S.data.steps; if (!steps.length) { $("script").textContent = ""; return; }
+  const k = nearest(steps, S.t, (r) => r.t_ns / 1e9), t = steps[k].t_ns;
+  if (scriptFor === t) return; scriptFor = t;
+  const text = await (await fetch(`/api/script/${encodeURIComponent(S.sid)}/${Math.round(t)}`)).text();
+  const r = steps[k];
+  const ans = r.lateral ? `\n\nJev: ${r.lateral} (${(r.lateral_probs[r.lateral] || 0).toFixed(2)})` +
+    (r.longitudinal ? `, ${r.longitudinal} (${(r.longitudinal_probs[r.longitudinal] || 0).toFixed(2)})` : "") : "\n\n(no Jev answer yet: dry run)";
+  $("script").textContent = text + ans;
+  const lightLine = text.split("\n").find((l) => l.includes("<- NOW"));
+  $("light").textContent = lightLine ? `light: ${lightLine.trim().split(/\s+/).slice(-3, -2)[0]}` : "";
+}
+
+// ---------- playback & keys ----------
+let lastFrame = 0;
+function tick(now) {
+  if (!S.playing) return;
+  const dt = lastFrame ? (now - lastFrame) / 1000 : 0; lastFrame = now;
+  setTime(S.t + dt * +$("speed").value);
+  if (S.t >= S.t1) { togglePlay(); return; }
+  requestAnimationFrame(tick);
+}
+function togglePlay() {
+  S.playing = !S.playing; lastFrame = 0;
+  $("play").textContent = S.playing ? "❚❚ Pause" : "▶ Play"; $("play").classList.toggle("on", S.playing);
+  if (S.playing) requestAnimationFrame(tick);
+}
+$("play").onclick = togglePlay;
+$("session").onchange = () => load($("session").value);
+addEventListener("keydown", (ev) => {
+  if (ev.target.tagName === "SELECT") return;
+  if (ev.key === " ") { ev.preventDefault(); togglePlay(); }
+  else if (ev.key === "ArrowRight") setTime(S.t + (ev.shiftKey ? 5 : 0.5));
+  else if (ev.key === "ArrowLeft") setTime(S.t - (ev.shiftKey ? 5 : 0.5));
+  else if (ev.key === "z") $("undo").onclick();
+});
+addEventListener("resize", () => S.data && drawAll());
+init().catch((e) => status(`error: ${e}`));
+</script>
+</body>
+</html>

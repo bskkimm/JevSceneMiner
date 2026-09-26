@@ -2,7 +2,7 @@
 
 Find interesting scenes in driving logs with [Jev](https://docs.typesafe.ai/introduction), a fast general-purpose classifier from [TypeSafe AI](https://typesafe.ai/).
 
-> **Status:** proof of concept. v1 reads Autoware rosbags (MCAP) and a Lanelet2 map, and labels the ego vehicle's driving decisions. No driving data is included: bring your own logs and map.
+> **Status:** proof of concept. Reads Autoware rosbags (MCAP) with a Lanelet2 map, or [nuPlan](https://www.nuscenes.org/nuplan) logs with their maps, and labels the ego vehicle's driving decisions. No driving data is included: bring your own logs, or download nuPlan.
 
 ## Goal
 
@@ -13,7 +13,7 @@ JevSceneMiner describes each moment of a log as a short text **script** and lets
 ## Pipeline
 
 ```
-rosbag + Lanelet2 map
+Autoware rosbag + Lanelet2 map, or nuPlan log + map
     │  every 0.5 s: a script of the 5 s before and 10 s after NOW
     ▼
 script  ──────►  Jev  ──────►  scenes
@@ -140,15 +140,65 @@ can name their own topics with `--topics topics.yaml`, e.g. `lights: [/my/neares
 out/run1/
 ├── steps/<session>.jsonl      one line per step: the script and Jev's answers with probabilities
 ├── scenes/<session>.json      scenes: start_ns / end_ns, lateral / longitudinal label, probability
+├── rules/scenes/<session>.json  the rule baseline, same format
+├── tags/, camera/             nuPlan only: scenario tags and front-camera frame times
+├── report/                    from `score`: report.md and report.json
 ├── indicator/<session>.json   periods with the turn indicator on: [start_s, end_s, 2=LEFT | 3=RIGHT]
 ├── meta/<session>.json        session span and the settings used
 └── cache/                     Jev answers keyed by script + questions
 ```
 
+## nuPlan
+
+[nuPlan](https://www.nuscenes.org/nuplan) has public driving logs and HD maps from Boston, Pittsburgh,
+Las Vegas and Singapore ([CC BY-NC 4.0](https://www.nuscenes.org/terms-of-use): non-commercial use).
+Download the maps, some log databases (e.g. the mini split) and, for the viewer, the camera images, into
+nuPlan's usual layout:
+
+```
+nuplan/
+├── maps/<city>/<version>/map.gpkg
+├── data/cache/<split>/<log>.db
+└── sensor_blobs/<log>/CAM_F0/*.jpg
+```
+
+```bash
+# Scripts for two logs; consecutive slices of one recording can be joined with a comma:
+uv run jevsceneminer run --out out/nuplan --dry-run \
+    --nuplan nuplan/data/cache/mini/<log>.db \
+    --nuplan nuplan/data/cache/mini/<log_part1>.db,nuplan/data/cache/mini/<log_part2>.db
+
+uv run jevsceneminer classify out/nuplan        # Jev
+uv run jevsceneminer score out/nuplan           # vs nuPlan's scenario tags (and --gt, once labeled)
+uv run jevsceneminer view out/nuplan --gt gt/ --sensor-root nuplan/sensor_blobs   # http://127.0.0.1:8650
+```
+
+What differs from rosbags:
+
+- **No turn indicator:** nuPlan does not record it. Scripts say "not recorded", and the label definitions
+  drop their indicator requirement (the `[[with||without]]` parts of `labels.yaml`).
+- **Traffic side** comes from the city (Singapore drives on the left, the US cities on the right).
+- **Traffic lights** are given per intersection lane, so the light ahead is the one of the lane the ego takes.
+- **Scenario tags** (e.g. `starting_left_turn`, `stationary`) are nuPlan's automatic labels. `score` uses them
+  as a rough check; they mark moments, not maneuver spans, so they are not GT.
+
+### Rule baseline, scoring and the viewer
+
+Every run also writes `rules/scenes/`: what plain geometry and speed thresholds find (turns through
+intersection lanes with a real heading change, lane switches, speed thresholds), to see whether Jev beats
+simple arithmetic.
+
+`score` compares runs with GT scene files (same format as `scenes/`): per-label precision / recall
+(a maneuver counts when it overlaps a GT maneuver of the same label by at least 0.5 s, one-to-one),
+start / end timing, confusion in seconds, agreement over time and Jev's probability calibration.
+
+`view` is a local page: front camera, a bird's-eye view of lanes, ego and objects, timeline bars for GT,
+Jev and the rule baseline, Jev's probability, the scenario tags, and the script Jev saw. It is also the
+labeling tool: pick a label, drag on the GT row, save (or start from a run and fix it).
+
 ## Roadmap
 
-- [nuPlan](https://www.nuscenes.org/nuplan) support (public logs and maps from four cities), with its scenario tags as a reference.
-- An open evaluation: precision / recall and start / end timing against hand-labeled scenes.
+- Hand-labeled GT for about an hour of nuPlan driving, and the first Jev vs rules comparison on it.
 
 ## License
 

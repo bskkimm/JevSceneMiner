@@ -100,6 +100,11 @@ def _transition_text(lanemap: LaneMap, names: Aliases, a: int | None, b: int | N
     return f"moves from {names(a)} into {names(b)} (not directly connected)"
 
 
+def _z(value: float, digits: int) -> float:
+    """``value`` rounded, with -0 turned into 0 (a "-0 km/h" reads like reversing)."""
+    return round(value, digits) + 0.0
+
+
 def render(tl: Timeline, lanemap: LaneMap, now_ns: int, past_s: int = 5, future_s: int = 10,
            traffic_side: str = "left") -> str | None:
     """Script for one NOW moment, or None when there is no ego data at NOW."""
@@ -166,19 +171,19 @@ def render(tl: Timeline, lanemap: LaneMap, now_ns: int, past_s: int = 5, future_
             continue
         p = tl.lane(i)
         lane = names(p.lane_id) if p is not None else "off map"
-        offset = f"{p.offset:+.1f} m" if p is not None else "-"
+        offset = f"{_z(p.offset, 1):+.1f} m" if p is not None else "-"
         ind = INDICATOR_TEXT.get(tl.indicator_at(t_ns), "off") if s.has_indicator else "n/a"
         row = (f"t={k:+d}s".ljust(7) + lane.ljust(9) + offset.ljust(9)
-               + f"{tl.v[i] * 3.6:.0f} km/h".ljust(10) + f"{tl.accel[i]:+.1f} m/s²".ljust(12)
-               + f"{math.degrees(tl.yaw_rate[i]):+.0f} °/s".ljust(10)
-               + f"{math.degrees(tl.yaw[i] - yaw_now):+.0f}°".ljust(9) + ind.ljust(11) + tl.light_at(t_ns))
+               + f"{_z(tl.v[i] * 3.6, 0):.0f} km/h".ljust(10) + f"{_z(tl.accel[i], 1):+.1f} m/s²".ljust(12)
+               + f"{_z(math.degrees(tl.yaw_rate[i]), 0):+.0f} °/s".ljust(10)
+               + f"{_z(math.degrees(tl.yaw[i] - yaw_now), 0):+.0f}°".ljust(9) + ind.ljust(11) + tl.light_at(t_ns))
         rows.append(row + ("   <- NOW" if k == 0 else ""))
 
     # Window summary (numbers Jev should not have to compute) -------------------------
     summary = []
     if tl.valid[lo] and tl.valid[hi]:
         turn = math.degrees(tl.yaw[hi] - tl.yaw[lo])
-        summary.append(f"heading change over the window: {turn:+.0f}°")
+        summary.append(f"heading change over the window: {_z(turn, 0):+.0f}°")
     k_brake = lo + int(tl.accel[lo:hi + 1].argmin())
     if tl.accel[k_brake] < -0.3:
         summary.append(f"strongest braking: {tl.accel[k_brake]:.1f} m/s² at {_t(rel_s(k_brake))}")

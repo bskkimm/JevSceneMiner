@@ -83,7 +83,8 @@ def _read(kind, source, read_kwargs, map_path, args, maps: dict):
         log = read_nuplan(source, object_interval_s=interval)
         map_path = find_map(_nuplan_maps_root(args, source[0]), log.location)
         side = args.traffic_side or TRAFFIC_SIDE.get(log.location, "right")
-        extras = {"location": log.location, "tags": log.tags, "camera": log.camera}
+        extras = {"location": log.location, "tags": log.tags, "camera": log.camera,
+                  "sources": [str(Path(x).resolve()) for x in source]}
         loader = load_nuplan_map
     else:
         if map_path is None:
@@ -126,7 +127,7 @@ def _prepare(session, lanemap, traffic_side: str, extras: dict, args, out: Path)
     meta = {"date": session.date, "name": session.name, "start_ns": session.start_ns, "end_ns": session.end_ns,
             "step_s": args.step, "past_s": args.past, "future_s": args.future, "topics": session.topics,
             "traffic_side": traffic_side, "has_indicator": session.has_indicator,
-            "map": extras.get("map"), "location": extras.get("location")}
+            "map": extras.get("map"), "location": extras.get("location"), "sources": extras.get("sources")}
     (out / "meta" / f"{sid}.json").write_text(json.dumps(meta))
     for sub in ("tags", "camera"):
         if extras.get(sub):
@@ -278,6 +279,20 @@ def cmd_score(args) -> int:
     return 0
 
 
+def cmd_view(args) -> int:
+    from .viewer import serve
+
+    out = Path(args.out)
+    runs = {}
+    for spec in args.run or ["jev=scenes", "rules=rules/scenes"]:
+        name, _, folder = spec.partition("=")
+        path = Path(folder) if Path(folder).is_absolute() else out / folder
+        runs[name] = path
+    serve(out, Path(args.gt) if args.gt else None, Path(args.sensor_root).expanduser() if args.sensor_root else None,
+          runs, host=args.host, port=args.port)
+    return 0
+
+
 def main(argv=None) -> int:
     load_dotenv()
     p = argparse.ArgumentParser(prog="jevsceneminer", description=__doc__)
@@ -349,6 +364,16 @@ def main(argv=None) -> int:
                     help="runs to score (default: jev=scenes rules=rules/scenes, relative to OUT)")
     sc.add_argument("--report", default=None, help="report folder (default: OUT/report)")
     sc.set_defaults(func=cmd_score)
+
+    v = sub.add_parser("view", help="local review / GT labeling site for a run folder")
+    v.add_argument("out", help="an --out folder of `jevsceneminer run`")
+    v.add_argument("--gt", default=None, help="GT folder to show and save edits to")
+    v.add_argument("--sensor-root", default=None, help="nuPlan sensor_blobs folder (front camera frames)")
+    v.add_argument("--run", action="append", metavar="NAME=FOLDER",
+                   help="runs to show (default: jev=scenes rules=rules/scenes, relative to OUT)")
+    v.add_argument("--host", default="127.0.0.1")
+    v.add_argument("--port", type=int, default=8650)
+    v.set_defaults(func=cmd_view)
 
     args = p.parse_args(argv)
     if args.command == "run":
