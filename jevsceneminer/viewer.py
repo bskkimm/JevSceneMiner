@@ -7,13 +7,22 @@ the map with the ego and nearby objects, timeline bars for the GT, Jev and the r
 baseline, Jev's probability, nuPlan's scenario tags, and the script Jev saw. The GT row
 can be edited and saved to ``<gt>/<session>.json`` (the same format as ``scenes/``).
 
+The bird's-eye data (map polygons, ego track, objects) depends only on the log and map
+files, not on any run, so it is built once and cached under ``~/.cache/jevsceneminer/bev``
+(keyed by those files' paths, sizes and times). A new run reuses it; its labels and
+probabilities are drawn on top by the page. At start, missing caches are built in the
+background.
+
 Everything is served from this machine; nothing is uploaded. Standard library only.
 """
 
 from __future__ import annotations
 
+import gzip
+import hashlib
 import json
 import mimetypes
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -22,7 +31,11 @@ from urllib.parse import unquote
 import numpy as np
 import shapely
 
+from .lanes import CACHE_DIR
+
 PAGE = Path(__file__).resolve().parent / "viewer" / "index.html"
+BEV_CACHE = CACHE_DIR / "bev"
+BEV_FORMAT = 1
 MAP_MARGIN_M = 60.0
 TRACK_EVERY_S = 0.1
 
@@ -77,16 +90,49 @@ class Site:
         """Map polygons near the path, the ego track and objects, relative to the first pose."""
         with self._lock:
             if sid not in self._bev:
-                self._bev[sid] = self._build_bev(sid)
+                self._bev[sid] = self._cached_bev(sid)
             return self._bev[sid]
 
-    def _build_bev(self, sid: str) -> dict:
+    def prebuild(self) -> None:
+        """Build the missing bird's-eye caches of all sessions (run in a background thread)."""
+        for p in sorted((self.out / "meta").glob("*.json")):
+            try:
+                self.bev(p.stem)
+            except Exception as exc:          # noqa: BLE001 - one bad session must not stop the rest
+                print(f"bird's-eye view of {p.stem} failed: {exc}", flush=True)
+
+    @staticmethod
+    def bev_key(meta: dict) -> str | None:
+        """Cache key from the source files (paths, sizes, modification times) and the format."""
+        if not meta or not meta.get("sources") or not meta.get("map"):
+            return None
+        parts = [f"bev-v{BEV_FORMAT}"]
+        for f in [*meta["sources"], meta["map"]]:
+            st = os.stat(f)
+            parts.append(f"{Path(f).resolve()}:{st.st_size}:{st.st_mtime_ns}")
+        return hashlib.sha1("|".join(parts).encode()).hexdigest()[:20]
+
+    def _cached_bev(self, sid: str) -> dict:
+        meta = _read_json(self.out / "meta" / f"{sid}.json")
+        key = self.bev_key(meta)
+        if key is None:
+            return {"available": False, "reason": "the map view is available for nuPlan sessions"}
+        path = BEV_CACHE / f"{key}.json.gz"
+        if path.exists():
+            return json.loads(gzip.decompress(path.read_bytes()))
+        doc = self._build_bev(meta)
+        BEV_CACHE.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_bytes(gzip.compress(json.dumps(doc).encode(), 6))
+        tmp.rename(path)
+        print(f"bird's-eye view of {sid} cached: {path}", flush=True)
+        return doc
+
+    @staticmethod
+    def _build_bev(meta: dict) -> dict:
         from .nuplan import read_nuplan
         from .nuplan_map import load_nuplan_map
 
-        meta = _read_json(self.out / "meta" / f"{sid}.json")
-        if not meta or not meta.get("sources") or not meta.get("map"):
-            return {"available": False, "reason": "the map view is available for nuPlan sessions"}
         log = read_nuplan(meta["sources"], object_interval_s=0.2)
         s = log.session
         lanemap = load_nuplan_map(Path(meta["map"]))
@@ -175,6 +221,7 @@ def make_handler(site: Site):
 def serve(out: Path, gt_dir: Path | None, sensor_root: Path | None, runs: dict[str, Path],
           host: str = "127.0.0.1", port: int = 8650) -> None:
     site = Site(out, gt_dir, sensor_root, runs)
+    threading.Thread(target=site.prebuild, daemon=True).start()
     server = ThreadingHTTPServer((host, port), make_handler(site))
     print(f"serving {out} on http://{host}:{port}/ (ctrl-c to stop)", flush=True)
     try:

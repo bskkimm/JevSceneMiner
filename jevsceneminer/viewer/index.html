@@ -172,7 +172,7 @@ async function load(sid) {
   $("save").title = S.data.gt_writable ? "Save to the --gt folder" : "Start the viewer with --gt to save";
   status(`${S.data.steps.length} steps · ${m.traffic_side || "?"}-hand traffic · indicator ${m.has_indicator === false ? "not recorded" : "recorded"}`);
   drawAll(); renderEvents(); loadScript();
-  $("bevnote").textContent = "building the map view (first time takes ~15 s)…"; drawBev();
+  $("bevnote").textContent = "loading the map view (cached after the first build, ~15 s)…"; drawBev();
   fetch(`/api/bev/${encodeURIComponent(sid)}`).then((r) => r.json()).then((b) => {
     if (sid !== S.sid) return;
     S.bev = b; $("bevnote").textContent = b.available ? "" : b.reason; drawBev();
@@ -412,6 +412,46 @@ function drawBev() {
   g.fillStyle = "#fff"; const [hx, hy] = P(ex + 1.8 * Math.cos(eyaw), ey + 1.8 * Math.sin(eyaw)); g.beginPath(); g.arc(hx, hy, 2.5, 0, 7); g.fill();
   g.fillStyle = css.getPropertyValue("--muted"); g.font = "11px system-ui"; g.fillText("10 m", 10, H - 12);
   g.fillRect(10, H - 8, 10 * scale, 2);
+  drawLabels(g);
+}
+
+// Labels at the cursor, drawn on top of the (cached, run-independent) bird's-eye data.
+function labelsAt(t) {
+  const at = (sp) => { const s = sp.find((q) => q[0] <= t && t < q[1]); return s ? s[2] : null; };
+  const rows = [];
+  if (S.gt.lat.length || S.gt.lon.length) rows.push(["GT", at(S.gt.lat), at(S.gt.lon), null]);
+  for (const n of S.runs) {
+    const run = S.data.runs[n];
+    if (!run) continue;
+    let prob = null;
+    if (n === "jev" && S.data.steps.length) {
+      const r = S.data.steps[nearest(S.data.steps, t, (q) => q.t_ns / 1e9)];
+      if (r.lateral) prob = [r.lateral, r.lateral_probs[r.lateral] || 0, r.longitudinal, (r.longitudinal_probs || {})[r.longitudinal]];
+    }
+    rows.push([n, at(spansOf(run, "lateral")), at(spansOf(run, "longitudinal")), prob]);
+  }
+  return rows;
+}
+function drawLabels(g) {
+  const rows = labelsAt(S.t);
+  if (!rows.length) return;
+  g.font = "12px system-ui"; g.textBaseline = "middle";
+  let y = 10;
+  for (const [who, lat, lon, prob] of rows) {
+    let x = 10;
+    g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(x - 4, y - 2, 330, 22);
+    g.fillStyle = "#fff"; g.fillText(who, x, y + 9); x += 44;
+    for (const [l, pr] of [[lat, prob && prob[0] === lat ? prob[1] : null], [lon, prob && prob[2] === lon ? prob[3] : null]]) {
+      if (!l) continue;
+      const text = pr != null ? `${l} ${pr.toFixed(2)}` : l, w = g.measureText(text).width + 10;
+      g.fillStyle = COLORS[l] || "#888"; g.fillRect(x, y, w, 18);
+      g.fillStyle = "#fff"; g.fillText(text, x + 5, y + 9); x += w + 6;
+    }
+    if (prob && prob[0] !== lat) {   // the scene label (after smoothing) differs from this step's answer
+      g.fillStyle = "#fff"; g.fillText(`(step: ${prob[0]} ${prob[1].toFixed(2)})`, x, y + 9);
+    }
+    y += 26;
+  }
 }
 
 // ---------- cursor, camera, script ----------

@@ -196,6 +196,10 @@ start / end timing, confusion in seconds, agreement over time and Jev's probabil
 Jev and the rule baseline, Jev's probability, the scenario tags, and the script Jev saw. It is also the
 labeling tool: pick a label, drag on the GT row, save (or start from a run and fix it).
 
+The bird's-eye data depends only on the log and map, so it is built once per session and cached in
+`~/.cache/jevsceneminer/bev/` (the viewer builds missing ones in the background at start). New runs reuse
+it: their labels and Jev's probabilities are drawn on top at the cursor.
+
 ## Roadmap
 
 - Hand-labeled GT for about an hour of nuPlan driving, and the first Jev vs rules comparison on it.
