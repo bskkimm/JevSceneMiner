@@ -11,7 +11,7 @@ import asyncio
 import hashlib
 import json
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Callable
 
@@ -23,14 +23,19 @@ RETRY = RetryPolicy(max_retries=6, http_statuses={429, 500, 502, 503, 504, 529},
                     backoff_initial=1.0, backoff_max=30.0, timeout=30.0)
 
 
+INDICATOR_CODES = {"left": 2, "right": 3}   # TurnIndicatorsReport: 2 = LEFT, 3 = RIGHT
+
+
 @dataclass(frozen=True)
 class Labels:
-    taxonomy_version: str
+    version: str
     lateral_instructions: str
     lateral: dict[str, str]
     longitudinal_instructions: str
     longitudinal: dict[str, str]
     lateral_only: bool = False   # ask only the lateral question
+    indicator: dict = field(default_factory=dict)   # lateral label -> indicator code it needs (2 | 3)
+    traffic_side: str = "left"
 
     def spec(self) -> dict:
         """Plain-JSON form of the questions, used in the cache key."""
@@ -46,15 +51,41 @@ class Labels:
         return qs
 
 
-def load_labels(path: Path, lateral_only: bool = False) -> Labels:
+def _sides(traffic_side: str) -> dict[str, str]:
+    if traffic_side not in ("left", "right"):
+        raise ValueError(f"traffic_side must be left or right, not {traffic_side!r}")
+    far = "right" if traffic_side == "left" else "left"
+    return {"curb": traffic_side, "far": far, "CURB": traffic_side.upper(), "FAR": far.upper()}
+
+
+def _definitions(entries: dict, sides: dict) -> tuple[dict[str, str], dict[str, int]]:
+    """Label -> definition text (sides filled in), and label -> indicator code it needs."""
+    texts, needs = {}, {}
+    for name, entry in entries.items():
+        if isinstance(entry, dict):
+            texts[name] = entry["definition"].format(**sides)
+            if entry.get("indicator"):
+                needs[name] = INDICATOR_CODES[sides.get(entry["indicator"], entry["indicator"])]
+        else:
+            texts[name] = entry.format(**sides)
+    return texts, needs
+
+
+def load_labels(path: Path, lateral_only: bool = False, traffic_side: str | None = None) -> Labels:
     doc = yaml.safe_load(Path(path).read_text())
+    side = traffic_side or doc.get("traffic_side", "left")
+    sides = _sides(side)
+    lateral, needs = _definitions(doc["lateral"]["labels"], sides)
+    longitudinal, _ = _definitions(doc["longitudinal"]["labels"], sides)
     return Labels(
         lateral_only=lateral_only,
-        taxonomy_version=str(doc["taxonomy_version"]),
+        version=str(doc["version"]),
         lateral_instructions=doc["lateral"]["instructions"],
-        lateral=dict(doc["lateral"]["labels"]),
+        lateral=lateral,
         longitudinal_instructions=doc["longitudinal"]["instructions"],
-        longitudinal=dict(doc["longitudinal"]["labels"]),
+        longitudinal=longitudinal,
+        indicator=needs,
+        traffic_side=side,
     )
 
 

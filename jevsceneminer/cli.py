@@ -111,21 +111,21 @@ def _classify(out: Path, meta: dict, scripts: dict, labels, args) -> None:
         indicator = json.loads((out / "indicator" / f"{sid}.json").read_text())
     steps = [Step(t, answers[t]) for t in scripts]
     scenes = stitch(steps, meta["step_s"], args.min_scene, meta["start_ns"], meta["end_ns"], args.min_prob,
-                    indicator=indicator)
+                    indicator=indicator, needs=labels.indicator)
     models = sorted({a.model for a in answers.values() if a.model})
-    doc = session_document(meta["date"], meta["name"], meta["start_ns"], meta["end_ns"], labels.taxonomy_version,
+    doc = session_document(meta["date"], meta["name"], meta["start_ns"], meta["end_ns"], labels.version,
                            scenes, {
         "name": "jevsceneminer", "version": __version__, "models": models,
         "step_s": meta["step_s"], "past_s": meta.get("past_s"), "future_s": meta.get("future_s"),
         "min_scene_s": args.min_scene, "min_prob": args.min_prob,
-        "require_indicator": args.require_indicator})
+        "require_indicator": args.require_indicator, "traffic_side": labels.traffic_side})
     path = write_scenes(out, doc)
     n_tokens = sum(a.input_tokens or 0 for a in answers.values())
     print(f"  {len(scenes)} scenes -> {path} (models {models}, {n_tokens} input tokens)", flush=True)
 
 
 def cmd_run(args) -> int:
-    labels = load_labels(args.labels, lateral_only=args.lateral_only)
+    labels = load_labels(args.labels, lateral_only=args.lateral_only, traffic_side=args.traffic_side)
     out = Path(args.out)
     maps: dict = {}
     totals = {"calls": 0, "chars": 0, "sessions": 0, "skipped": 0}
@@ -161,7 +161,7 @@ def cmd_run(args) -> int:
 
 def cmd_classify(args) -> int:
     """Jev + stitching for every session a `run --dry-run` prepared under <out>."""
-    labels = load_labels(args.labels, lateral_only=args.lateral_only)
+    labels = load_labels(args.labels, lateral_only=args.lateral_only, traffic_side=args.traffic_side)
     out = Path(args.out)
     failed = []
     for meta_path in sorted((out / "meta").glob("*.json")):
@@ -186,7 +186,7 @@ def cmd_classify(args) -> int:
 def cmd_restitch(args) -> int:
     """Rebuild scenes from the saved per-step answers with other settings (no Jev calls)."""
     src, dst = Path(args.src), Path(args.out)
-    labels = load_labels(args.labels)
+    labels = load_labels(args.labels, traffic_side=args.traffic_side)
     for steps_path in sorted((src / "steps").glob("*.jsonl")):
         rows = [json.loads(line) for line in steps_path.read_text().splitlines() if line.strip()]
         if not rows or "lateral" not in rows[0]:
@@ -201,11 +201,11 @@ def cmd_restitch(args) -> int:
         if args.require_indicator:
             indicator = json.loads((src / "indicator" / f"{sid}.json").read_text())
         scenes = stitch(steps, meta["step_s"], args.min_scene, meta["start_ns"], meta["end_ns"],
-                        args.min_prob, indicator=indicator)
+                        args.min_prob, indicator=indicator, needs=labels.indicator)
         generator.update(min_scene_s=args.min_scene, min_prob=args.min_prob,
                          require_indicator=args.require_indicator, restitched_from=str(src))
         write_scenes(dst, session_document(meta["date"], meta["name"], meta["start_ns"], meta["end_ns"],
-                                           labels.taxonomy_version, scenes, generator))
+                                           labels.version, scenes, generator))
         print(f"{meta['date']} {meta['name']}: {len(scenes)} scenes")
     for sub in ("meta", "indicator"):
         if (src / sub).exists():
@@ -229,12 +229,14 @@ def main(argv=None) -> int:
     r.add_argument("--keep-going", action="store_true", help="skip sessions whose bags lack required topics")
     r.add_argument("--out", required=True)
     r.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
+    r.add_argument("--traffic-side", choices=("left", "right"), default=None,
+                   help="side traffic drives on (default: labels.yaml's traffic_side)")
     r.add_argument("--step", type=float, default=0.5, help="seconds between NOW steps (0.5 = 2 Hz)")
     r.add_argument("--past", type=int, default=5, help="seconds of PAST in each script's table")
     r.add_argument("--future", type=int, default=10, help="seconds of FUTURE in each script's table")
     r.add_argument("--min-scene", type=float, default=2.0, help="shorter label runs are merged away")
     r.add_argument("--min-prob", type=float, default=0.4,
-                   help="maneuvers with a lower mean Jev probability become follow_lane")
+                   help="maneuvers with a lower mean Jev probability become keep_lane")
     r.add_argument("--workers", type=int, default=8, help="parallel Jev calls")
     r.add_argument("--model", default=None, help="Jev model (default: the API's default)")
     r.add_argument("--lateral-only", action="store_true", help="ask Jev only the lateral question")
@@ -248,6 +250,8 @@ def main(argv=None) -> int:
     c = sub.add_parser("classify", help="Jev + scenes for sessions prepared by `run --dry-run`")
     c.add_argument("out", help="the --out folder of `run --dry-run`")
     c.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
+    c.add_argument("--traffic-side", choices=("left", "right"), default=None,
+                   help="side traffic drives on (default: labels.yaml's traffic_side)")
     c.add_argument("--min-scene", type=float, default=2.0)
     c.add_argument("--min-prob", type=float, default=0.4)
     c.add_argument("--require-indicator", action="store_true")
@@ -262,6 +266,8 @@ def main(argv=None) -> int:
     t.add_argument("src", help="an --out folder of `jevsceneminer run`")
     t.add_argument("--out", required=True)
     t.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
+    t.add_argument("--traffic-side", choices=("left", "right"), default=None,
+                   help="side traffic drives on (default: labels.yaml's traffic_side)")
     t.add_argument("--min-scene", type=float, default=2.0)
     t.add_argument("--min-prob", type=float, default=0.4)
     t.add_argument("--require-indicator", action="store_true")

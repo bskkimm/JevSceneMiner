@@ -2,7 +2,7 @@
 
 A step's label holds for step/2 on either side of it. Runs shorter than ``min_scene_s``
 are merged into a neighbor (flicker removal), maneuvers Jev is unsure about (mean
-probability below ``min_prob``) become follow_lane, and a new scene starts whenever the
+probability below ``min_prob``) become keep_lane, and a new scene starts whenever the
 lateral or longitudinal label changes.
 """
 
@@ -70,7 +70,7 @@ def _segments(steps: list[Step], step_s: float) -> list[list[Step]]:
     return out
 
 
-def demote_unsure(steps: list[Step], lat: list[str], min_prob: float, fallback: str = "follow_lane") -> list[str]:
+def demote_unsure(steps: list[Step], lat: list[str], min_prob: float, fallback: str = "keep_lane") -> list[str]:
     """Relabel lateral runs whose mean Jev probability is below ``min_prob`` as ``fallback``."""
     lat = list(lat)
     i = 0
@@ -86,19 +86,13 @@ def demote_unsure(steps: list[Step], lat: list[str], min_prob: float, fallback: 
     return lat
 
 
-# Maneuvers that only exist with the matching indicator (2 = LEFT, 3 = RIGHT), which is
-# normally on from a few seconds before the maneuver starts. Pull-over/out are for
-# left-hand traffic (pull over to the left); swap them for right-hand traffic.
-NEEDS_INDICATOR = {"turn_left": 2, "turn_right": 3, "change_lane_left": 2, "change_lane_right": 3,
-                   "pulling_over": 2, "pulling_out": 3}
-
-
-def gate_by_indicator(steps: list[Step], lat: list[str], segments: list, step_s: float,
-                      lead_s: float = 3.0, fallback: str = "follow_lane") -> list[str]:
+def gate_by_indicator(steps: list[Step], lat: list[str], segments: list, step_s: float, needs: dict[str, int],
+                      lead_s: float = 3.0, fallback: str = "keep_lane") -> list[str]:
     """Relabel maneuvers with no matching indicator (on from ``lead_s`` before) as ``fallback``.
 
-    ``segments`` are indicator periods ``[start_s, end_s, 2|3]``. This is a rule on top of
-    Jev, so it is off unless asked for.
+    ``segments`` are indicator periods ``[start_s, end_s, 2|3]``; ``needs`` maps a label to
+    the indicator it requires (``Labels.indicator``). This is a rule on top of Jev, so it
+    is off unless asked for.
     """
     lat = list(lat)
     half = step_s / 2
@@ -107,7 +101,7 @@ def gate_by_indicator(steps: list[Step], lat: list[str], segments: list, step_s:
         j = i
         while j + 1 < len(lat) and lat[j + 1] == lat[i]:
             j += 1
-        want = NEEDS_INDICATOR.get(lat[i])
+        want = needs.get(lat[i])
         if want is not None:
             a = steps[i].t_ns / 1e9 - half - lead_s
             b = steps[j].t_ns / 1e9 + half
@@ -118,7 +112,7 @@ def gate_by_indicator(steps: list[Step], lat: list[str], segments: list, step_s:
 
 
 def stitch(steps: list[Step], step_s: float, min_scene_s: float, start_ns: int, end_ns: int,
-           min_prob: float = 0.0, indicator: list | None = None) -> list[Scene]:
+           min_prob: float = 0.0, indicator: list | None = None, needs: dict[str, int] | None = None) -> list[Scene]:
     min_len = max(1, int(round(min_scene_s / step_s)))
     half = int(step_s * 1e9 / 2)
     scenes: list[Scene] = []
@@ -127,7 +121,7 @@ def stitch(steps: list[Step], step_s: float, min_scene_s: float, start_ns: int, 
         if min_prob > 0:
             lat = demote_unsure(seg, lat, min_prob)
         if indicator is not None:
-            lat = gate_by_indicator(seg, lat, indicator, step_s)
+            lat = gate_by_indicator(seg, lat, indicator, step_s, needs or {})
         lon = smooth_runs([s.answer.longitudinal for s in seg], min_len)
         i = 0
         while i < len(seg):
@@ -147,7 +141,7 @@ def stitch(steps: list[Step], step_s: float, min_scene_s: float, start_ns: int, 
     return scenes
 
 
-def session_document(date: str, name: str, start_ns: int, end_ns: int, taxonomy_version: str,
+def session_document(date: str, name: str, start_ns: int, end_ns: int, labels_version: str,
                      scenes: list[Scene], generator: dict) -> dict:
     """One session's scenes; times are integer nanoseconds since the epoch, as strings."""
     return {
@@ -155,7 +149,7 @@ def session_document(date: str, name: str, start_ns: int, end_ns: int, taxonomy_
         "session": name,
         "start_ns": str(start_ns),
         "end_ns": str(end_ns),
-        "taxonomy_version": taxonomy_version,
+        "labels_version": labels_version,
         "generator": generator,
         "scenes": [{
             "scene_id": f"scene_{k:03d}",

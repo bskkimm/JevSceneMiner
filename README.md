@@ -24,7 +24,7 @@ script  ──────►  Jev  ──────►  scenes
 ```
 
 1. **Script:** facts computed from the full-rate data (Jev is not asked to do arithmetic): lane and lane changes, speed, acceleration, yaw rate, heading change, indicator, traffic light, the intersections and stops along the ego's path, and nearby objects. Only relative facts: no map IDs, positions or clock times.
-2. **Jev:** two Choice questions per script (10 lateral labels, 4 longitudinal labels), with the definitions in [`labels.yaml`](labels.yaml). Jev returns a probability for every label.
+2. **Jev:** two Choice questions per script (10 lateral labels such as `turn_left`, `u_turn` and `lane_change_right`; 5 longitudinal labels such as `cruising` and `hard_braking`), with the definitions in [`labels.yaml`](labels.yaml). Jev returns a probability for every label.
 3. **Scenes:** consecutive steps with the same labels become one scene with start/end times; short flickers and low-confidence maneuvers are smoothed away.
 
 ## Usage
@@ -42,6 +42,9 @@ uv run jevsceneminer run <session_dir>... --map lanelet2_map.osm --out out/run1
 # Jev + scenes for folders prepared with --dry-run; re-stitch saved answers without Jev:
 uv run jevsceneminer classify out/run1
 uv run jevsceneminer restitch out/run1 --out out/run1b --min-prob 0.5
+
+# Right-hand traffic (e.g. the US): flips which indicator a U-turn, pull-over and pull-away need
+uv run jevsceneminer run ... --traffic-side right
 
 uv run pytest
 ```

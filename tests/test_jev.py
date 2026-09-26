@@ -6,8 +6,8 @@ import pytest
 from jevsceneminer.cli import indicator_segments
 from jevsceneminer.jev import AnswerCache, JevClassifier, JevError, Labels, cache_key
 
-LABELS = Labels("0.1.1", "lateral?", {"follow_lane": "stay", "turn_left": "turn"},
-                "longitudinal?", {"standing_still": "stopped", "driving_forward_keeping_speed": "steady"})
+LABELS = Labels("jsm-1.0", "lateral?", {"keep_lane": "stay", "turn_left": "turn"},
+                "longitudinal?", {"stopped": "stopped", "cruising": "steady"})
 
 
 class FakeClient:
@@ -18,10 +18,10 @@ class FakeClient:
         self.calls += 1
         if "FAIL" in state:
             raise RuntimeError("boom")
-        lat = "turn_left" if "left" in state else "follow_lane"
+        lat = "turn_left" if "left" in state else "keep_lane"
         return SimpleNamespace(
             answers={"lateral": SimpleNamespace(choice=lat, probabilities={lat: 0.9}),
-                     "longitudinal": SimpleNamespace(choice="standing_still", probabilities={"standing_still": 1.0})},
+                     "longitudinal": SimpleNamespace(choice="stopped", probabilities={"stopped": 1.0})},
             model="jev-test", usage=SimpleNamespace(input_tokens=100))
 
     async def aclose(self):
@@ -33,7 +33,7 @@ def test_classifier_uses_the_cache(tmp_path):
     cache = AnswerCache(tmp_path / "c.jsonl")
     out = JevClassifier(LABELS, cache, client_factory=lambda: client, log=lambda _: None).classify(
         {1: "turning left", 2: "going straight"})
-    assert out[1].lateral == "turn_left" and out[2].lateral == "follow_lane"
+    assert out[1].lateral == "turn_left" and out[2].lateral == "keep_lane"
     assert out[1].model == "jev-test" and out[1].input_tokens == 100
     again = JevClassifier(LABELS, AnswerCache(tmp_path / "c.jsonl"), client_factory=lambda: client,
                           log=lambda _: None).classify({1: "turning left"})
@@ -47,7 +47,7 @@ def test_classifier_raises_after_failures(tmp_path):
 
 
 def test_cache_key_changes_with_questions_and_script():
-    other = Labels("0.1.1", "lateral?", {"follow_lane": "stay"}, "longitudinal?", LABELS.longitudinal)
+    other = Labels("jsm-1.0", "lateral?", {"keep_lane": "stay"}, "longitudinal?", LABELS.longitudinal)
     assert cache_key(None, LABELS, "a") != cache_key(None, other, "a")
     assert cache_key(None, LABELS, "a") != cache_key(None, LABELS, "b")
     assert cache_key(None, LABELS, "a") == cache_key(None, LABELS, "a")
@@ -67,9 +67,25 @@ class LateralOnlyClient(FakeClient):
 
 
 def test_lateral_only_asks_one_question(tmp_path):
-    labels = Labels(*[getattr(LABELS, f) for f in ("taxonomy_version", "lateral_instructions", "lateral",
+    labels = Labels(*[getattr(LABELS, f) for f in ("version", "lateral_instructions", "lateral",
                                                     "longitudinal_instructions", "longitudinal")], lateral_only=True)
     out = JevClassifier(labels, AnswerCache(tmp_path / "c.jsonl"), client_factory=LateralOnlyClient,
                         log=lambda _: None).classify({1: "x"})
     assert out[1].lateral == "turn_left" and out[1].longitudinal is None and out[1].longitudinal_probs == {}
     assert cache_key(None, labels, "x") != cache_key(None, LABELS, "x")
+
+
+def test_labels_fill_in_the_traffic_side():
+    from pathlib import Path
+
+    from jevsceneminer.jev import load_labels
+
+    path = Path(__file__).resolve().parents[1] / "labels.yaml"
+    left, right = load_labels(path), load_labels(path, traffic_side="right")
+    assert "u_turn" in left.lateral and "{" not in "".join(left.lateral.values())
+    assert left.indicator["u_turn"] == 3 and right.indicator["u_turn"] == 2          # far side
+    assert left.indicator["pull_over"] == 2 and right.indicator["pull_over"] == 3    # curb side
+    assert left.indicator["turn_left"] == right.indicator["turn_left"] == 2
+    assert "LEFT indicator comes on" in left.lateral["pull_over"]
+    assert "RIGHT indicator comes on" in right.lateral["pull_over"]
+    assert cache_key(None, left, "x") != cache_key(None, right, "x")
