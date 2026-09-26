@@ -227,3 +227,11 @@ __marimo__/
 *.mcap
 *.osm
 *.pcd
+
+# Run outputs (scripts, answers, reports) are derived from private driving data.
+/out/
+
+# Local, non-public tooling and notes: never committed.
+/internal/
+/docs/superpowers/
+.superpowers/

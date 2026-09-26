@@ -1,0 +1,66 @@
+# Labels Jev chooses from, with the plain-language definitions it is given.
+# Editing a definition changes the questions, so cached answers are not reused.
+taxonomy_version: "0.1.1"
+
+lateral:
+  instructions: >-
+    Which lateral maneuver is the ego vehicle performing at NOW (the t=0s line)?
+    Use the PAST and FUTURE lines to judge whether NOW is inside a maneuver.
+  labels:
+    follow_lane: >-
+      Staying in its lane, including following road curves and taking one side
+      where the road forks. Choose this when none of the other maneuvers
+      applies. A stop is follow_lane unless it happens in the middle of a turn,
+      pull-over or pull-out.
+    turn_left: >-
+      Turning left at an intersection with the LEFT indicator on: from the
+      approach, about 30 m before entering the intersection lane (see ROUTE
+      CONTEXT), until the heading is steady again after the turn. The heading
+      changes a lot (typically 45 degrees or more). If the ego stops during the
+      turn (waiting for traffic or a light), the turn continues through the
+      stop. The LEFT indicator is required: if it is not on during the maneuver
+      (see the indicator lines in SUMMARY and ROUTE CONTEXT), this is follow_lane,
+      even when the heading changes a lot.
+    turn_right: >-
+      Turning right at an intersection with the RIGHT indicator on: from the
+      approach, about 30 m before entering the intersection lane (see ROUTE
+      CONTEXT), until the heading is steady again after the turn. The heading
+      changes a lot (typically 45 degrees or more). If the ego stops during the
+      turn (waiting for traffic or a light), the turn continues through the
+      stop. The RIGHT indicator is required: if it is not on during the maneuver
+      (see the indicator lines in SUMMARY and ROUTE CONTEXT), this is follow_lane,
+      even when the heading changes a lot.
+    change_lane_left: >-
+      Moving from its lane into the side-by-side neighbor lane on the left,
+      from when it starts drifting toward that lane until it has settled in it.
+      The LEFT indicator is required; without it, this is follow_lane.
+    change_lane_right: >-
+      Moving from its lane into the side-by-side neighbor lane on the right,
+      from when it starts drifting toward that lane until it has settled in it.
+      The RIGHT indicator is required; without it, this is follow_lane.
+    in_lane_avoidance: >-
+      Shifting sideways by less than 1.5 m, staying inside its lane, to pass a
+      stopped vehicle ahead, then returning to the lane center.
+    out_of_lane_avoidance: >-
+      Swerving sideways by 1.5 m or more, partly leaving its lane, to pass a
+      stopped vehicle ahead, then returning to its lane.
+    pulling_over: >-
+      From when the LEFT indicator comes on until the ego vehicle stops at the
+      left road edge or shoulder (see next stop in ROUTE CONTEXT).
+    pulling_out: >-
+      From starting to move after a stop at the road edge or shoulder, with the
+      RIGHT indicator on, until the ego vehicle is back in the traffic lane.
+    emergency_braking: >-
+      Braking unusually hard and suddenly, like an emergency stop: deceleration
+      stronger than about 3 m/s² that builds up within about a second. Ordinary
+      braking, including braking during a turn or lane change, is not this.
+
+longitudinal:
+  instructions: >-
+    How is the ego vehicle's speed changing around NOW, from about 2 s before to
+    2 s after the t=0s line?
+  labels:
+    standing_still: Stopped, speed about 0.
+    driving_forward_accelerating: Moving and speeding up by more than about 1 m/s.
+    driving_forward_decelerating: Moving and slowing down by more than about 1 m/s.
+    driving_forward_keeping_speed: Moving at a roughly steady speed.

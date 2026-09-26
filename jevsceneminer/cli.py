@@ -1,0 +1,281 @@
+"""Command line: ``jevsceneminer run`` (bags -> scripts -> Jev -> scenes), ``classify`` and ``restitch``."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import sys
+import time
+from pathlib import Path
+
+import yaml
+
+from . import __version__
+from .bag import INDICATOR_LEFT, INDICATOR_RIGHT, BagError, read_session
+from .facts import build_timeline
+from .jev import Answer, AnswerCache, JevClassifier, JevError, cache_key, load_labels
+from .lanes import LaneMap
+from .scenes import Step, session_document, stitch, write_scenes
+from .script import render, strip_map
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+PRICE_PER_M_INPUT_TOKENS = 0.042  # USD, TypeSafe's published price; output tokens are free
+
+
+def load_dotenv(paths=(Path.cwd() / ".env", REPO_ROOT / ".env")) -> None:
+    for path in paths:
+        if path.exists():
+            for line in path.read_text().splitlines():
+                key, sep, value = line.strip().partition("=")
+                if sep and not key.startswith("#") and key not in os.environ:
+                    os.environ[key] = value.strip()
+
+
+def indicator_segments(session) -> list[list]:
+    """Periods with the indicator on, as ``[start_s, end_s, 2|3]`` (2 = LEFT, 3 = RIGHT)."""
+    segments, state, start, last = [], None, None, None
+    for t, report in zip(session.indicator_t, session.indicator):
+        ts = int(t) / 1e9
+        if report != state:
+            if state in (INDICATOR_LEFT, INDICATOR_RIGHT):
+                segments.append([start, ts, int(state)])
+            state, start = report, ts
+        last = ts
+    if state in (INDICATOR_LEFT, INDICATOR_RIGHT):
+        segments.append([start, last, int(state)])
+    return segments
+
+
+def _sources(args):
+    """(bag source, read_session kwargs, map path) per session: folders, then --spans entries."""
+    for d in args.sessions:
+        yield Path(d), {}, args.map
+    if args.spans:
+        for sp in json.loads(Path(args.spans).read_text()):
+            yield ([Path(f) for f in sp["files"]],
+                   {"start_ns": int(sp["start_s"] * 1e9), "end_ns": int(sp["end_s"] * 1e9),
+                    "name": sp["name"], "date": sp["date"]},
+                   sp.get("map") or args.map)
+
+
+def _prepare(source, read_kwargs, lanemap, args, out: Path) -> tuple[dict, dict]:
+    """Read one session, write its scripts (steps), indicator periods and metadata."""
+    t1 = time.time()
+    session = read_session(source, object_interval_s=min(0.45, args.step * 0.9), topics=args.topic_lists,
+                           **read_kwargs)
+    timeline = build_timeline(session, lanemap)
+    span = (session.end_ns - session.start_ns) / 1e9
+    print(f"{session.date} {session.name}: {span:.0f} s of driving, read in {time.time() - t1:.1f} s "
+          f"(ego {session.topics['ego']}, objects {session.topics['objects']})", flush=True)
+
+    step_ns = int(round(args.step * 1e9))
+    first = session.start_ns + (-session.start_ns) % step_ns   # steps on a fixed clock grid
+    times = list(range(first, session.end_ns + 1, step_ns))
+    if args.max_steps:
+        times = times[args.first_step:args.first_step + args.max_steps]
+    scripts = {}
+    for t in times:
+        text = render(timeline, lanemap, t, past_s=args.past, future_s=args.future)
+        if text is not None:
+            scripts[t] = text
+
+    sid = f"{session.date}_{session.name}"
+    for sub in ("steps", "indicator", "meta"):
+        (out / sub).mkdir(parents=True, exist_ok=True)
+    (out / "indicator" / f"{sid}.json").write_text(json.dumps(indicator_segments(session)))
+    meta = {"date": session.date, "name": session.name, "start_ns": session.start_ns, "end_ns": session.end_ns, "step_s": args.step,
+            "past_s": args.past, "future_s": args.future, "topics": session.topics}
+    (out / "meta" / f"{sid}.json").write_text(json.dumps(meta))
+    with open(out / "steps" / f"{sid}.jsonl", "w") as fh:
+        for t, text in scripts.items():
+            fh.write(json.dumps({"t_ns": t, "script": text}, ensure_ascii=False) + "\n")
+    return meta, scripts
+
+
+def _classify(out: Path, meta: dict, scripts: dict, labels, args) -> None:
+    """Ask Jev about every script of one session, then stitch and write its run file."""
+    sid = f"{meta['date']}_{meta['name']}"
+    cache = AnswerCache(out / "cache" / f"{sid}.jsonl")
+    answers = JevClassifier(labels, cache, model=args.model, workers=args.workers).classify(scripts)
+    with open(out / "steps" / f"{sid}.jsonl", "w") as fh:
+        for t, text in scripts.items():
+            a = answers[t]
+            fh.write(json.dumps({"t_ns": t, "script": text, "lateral": a.lateral, "lateral_probs": a.lateral_probs,
+                                 "longitudinal": a.longitudinal, "longitudinal_probs": a.longitudinal_probs,
+                                 "model": a.model, "input_tokens": a.input_tokens,
+                                 "cache_key": cache_key(args.model, labels, text)}, ensure_ascii=False) + "\n")
+    indicator = None
+    if args.require_indicator:
+        indicator = json.loads((out / "indicator" / f"{sid}.json").read_text())
+    steps = [Step(t, answers[t]) for t in scripts]
+    scenes = stitch(steps, meta["step_s"], args.min_scene, meta["start_ns"], meta["end_ns"], args.min_prob,
+                    indicator=indicator)
+    models = sorted({a.model for a in answers.values() if a.model})
+    doc = session_document(meta["date"], meta["name"], meta["start_ns"], meta["end_ns"], labels.taxonomy_version,
+                           scenes, {
+        "name": "jevsceneminer", "version": __version__, "models": models,
+        "step_s": meta["step_s"], "past_s": meta.get("past_s"), "future_s": meta.get("future_s"),
+        "min_scene_s": args.min_scene, "min_prob": args.min_prob,
+        "require_indicator": args.require_indicator})
+    path = write_scenes(out, doc)
+    n_tokens = sum(a.input_tokens or 0 for a in answers.values())
+    print(f"  {len(scenes)} scenes -> {path} (models {models}, {n_tokens} input tokens)", flush=True)
+
+
+def cmd_run(args) -> int:
+    labels = load_labels(args.labels, lateral_only=args.lateral_only)
+    out = Path(args.out)
+    maps: dict = {}
+    totals = {"calls": 0, "chars": 0, "sessions": 0, "skipped": 0}
+    for source, read_kwargs, map_path in _sources(args):
+        if map_path is None:
+            raise SystemExit("no map: pass --map, or a \"map\" in each --spans entry")
+        if map_path not in maps:
+            t0 = time.time()
+            maps[map_path] = LaneMap.load(map_path)
+            print(f"map {map_path}: {len(maps[map_path].lanes)} lanes ({time.time() - t0:.1f} s)", flush=True)
+        try:
+            meta, scripts = _prepare(source, read_kwargs, maps[map_path], args, out)
+        except BagError as exc:
+            if not args.keep_going:
+                raise
+            totals["skipped"] += 1
+            print(f"  [skip] {exc}", flush=True)
+            continue
+        totals["calls"] += len(scripts)
+        totals["chars"] += sum(len(x) for x in scripts.values())
+        totals["sessions"] += 1
+        if args.dry_run:
+            print(f"  dry run: {len(scripts)} scripts written", flush=True)
+        else:
+            _classify(out, meta, scripts, labels, args)
+
+    # Script chars / 4, plus the question definitions sent with every call (measured ~1.4k tokens).
+    est_tokens = totals["chars"] / 4 + totals["calls"] * 1400
+    print(f"total: {totals['sessions']} sessions ({totals['skipped']} skipped), {totals['calls']} Jev calls, "
+          f"~{est_tokens / 1e6:.1f}M input tokens, ~${est_tokens / 1e6 * PRICE_PER_M_INPUT_TOKENS:.2f}")
+    return 0
+
+
+def cmd_classify(args) -> int:
+    """Jev + stitching for every session a `run --dry-run` prepared under <out>."""
+    labels = load_labels(args.labels, lateral_only=args.lateral_only)
+    out = Path(args.out)
+    failed = []
+    for meta_path in sorted((out / "meta").glob("*.json")):
+        meta = json.loads(meta_path.read_text())
+        sid = meta_path.stem
+        rows = [json.loads(line) for line in (out / "steps" / f"{sid}.jsonl").read_text().splitlines() if line.strip()]
+        print(f"{meta['date']} {meta['name']}: {len(rows)} scripts", flush=True)
+        scripts = {r["t_ns"]: r["script"] for r in rows}
+        if args.strip_map:
+            scripts = {t: strip_map(x) for t, x in scripts.items()}
+        try:
+            _classify(out, meta, scripts, labels, args)
+        except JevError as exc:     # answers so far are cached: re-running finishes the session
+            failed.append(sid)
+            print(f"  [failed] {exc}", flush=True)
+    if failed:
+        print(f"{len(failed)} session(s) failed (re-run to finish from the cache): {', '.join(failed)}")
+        return 1
+    return 0
+
+
+def cmd_restitch(args) -> int:
+    """Rebuild scenes from the saved per-step answers with other settings (no Jev calls)."""
+    src, dst = Path(args.src), Path(args.out)
+    labels = load_labels(args.labels)
+    for steps_path in sorted((src / "steps").glob("*.jsonl")):
+        rows = [json.loads(line) for line in steps_path.read_text().splitlines() if line.strip()]
+        if not rows or "lateral" not in rows[0]:
+            continue   # dry-run output has no answers
+        sid = steps_path.stem
+        meta = json.loads((src / "meta" / f"{sid}.json").read_text())
+        old = src / "scenes" / f"{sid}.json"
+        generator = dict(json.loads(old.read_text()).get("generator") or {}) if old.exists() else {}
+        steps = [Step(r["t_ns"], Answer(r["lateral"], r["lateral_probs"], r["longitudinal"], r["longitudinal_probs"],
+                                        r.get("model"), r.get("input_tokens"))) for r in rows]
+        indicator = None
+        if args.require_indicator:
+            indicator = json.loads((src / "indicator" / f"{sid}.json").read_text())
+        scenes = stitch(steps, meta["step_s"], args.min_scene, meta["start_ns"], meta["end_ns"],
+                        args.min_prob, indicator=indicator)
+        generator.update(min_scene_s=args.min_scene, min_prob=args.min_prob,
+                         require_indicator=args.require_indicator, restitched_from=str(src))
+        write_scenes(dst, session_document(meta["date"], meta["name"], meta["start_ns"], meta["end_ns"],
+                                           labels.taxonomy_version, scenes, generator))
+        print(f"{meta['date']} {meta['name']}: {len(scenes)} scenes")
+    for sub in ("meta", "indicator"):
+        if (src / sub).exists():
+            shutil.copytree(src / sub, dst / sub, dirs_exist_ok=True)
+    return 0
+
+
+def main(argv=None) -> int:
+    load_dotenv()
+    p = argparse.ArgumentParser(prog="jevsceneminer", description=__doc__)
+    sub = p.add_subparsers(dest="command", required=True)
+
+    r = sub.add_parser("run", help="bags -> scripts -> Jev -> scenes")
+    r.add_argument("sessions", nargs="*", help="session folders with .mcap chunks")
+    r.add_argument("--spans", default=None,
+                   help="JSON list of sessions as {name, date, start_s, end_s, files[, map]}")
+    r.add_argument("--map", default=None, help="lanelet2_map.osm (unless every --spans entry has one)")
+    r.add_argument("--topics", default=None,
+                   help="YAML {role: [topic, ...]} overriding the default Autoware topics "
+                        "(roles: ego, objects, lights, indicator)")
+    r.add_argument("--keep-going", action="store_true", help="skip sessions whose bags lack required topics")
+    r.add_argument("--out", required=True)
+    r.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
+    r.add_argument("--step", type=float, default=0.5, help="seconds between NOW steps (0.5 = 2 Hz)")
+    r.add_argument("--past", type=int, default=5, help="seconds of PAST in each script's table")
+    r.add_argument("--future", type=int, default=10, help="seconds of FUTURE in each script's table")
+    r.add_argument("--min-scene", type=float, default=2.0, help="shorter label runs are merged away")
+    r.add_argument("--min-prob", type=float, default=0.4,
+                   help="maneuvers with a lower mean Jev probability become follow_lane")
+    r.add_argument("--workers", type=int, default=8, help="parallel Jev calls")
+    r.add_argument("--model", default=None, help="Jev model (default: the API's default)")
+    r.add_argument("--lateral-only", action="store_true", help="ask Jev only the lateral question")
+    r.add_argument("--require-indicator", action="store_true",
+                   help="turns, lane changes and pull-over/out need the matching indicator (a rule on top of Jev)")
+    r.add_argument("--dry-run", action="store_true", help="write scripts and a cost estimate, no Jev calls")
+    r.add_argument("--max-steps", type=int, default=0, help="only this many steps (smoke tests)")
+    r.add_argument("--first-step", type=int, default=0, help="with --max-steps: index of the first step")
+    r.set_defaults(func=cmd_run)
+
+    c = sub.add_parser("classify", help="Jev + scenes for sessions prepared by `run --dry-run`")
+    c.add_argument("out", help="the --out folder of `run --dry-run`")
+    c.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
+    c.add_argument("--min-scene", type=float, default=2.0)
+    c.add_argument("--min-prob", type=float, default=0.4)
+    c.add_argument("--require-indicator", action="store_true")
+    c.add_argument("--lateral-only", action="store_true", help="ask Jev only the lateral question")
+    c.add_argument("--strip-map", action="store_true",
+                   help="remove every map-derived fact from the scripts first (no-map ablation)")
+    c.add_argument("--workers", type=int, default=8)
+    c.add_argument("--model", default=None)
+    c.set_defaults(func=cmd_classify)
+
+    t = sub.add_parser("restitch", help="rebuild scenes from saved answers with other settings (no Jev calls)")
+    t.add_argument("src", help="an --out folder of `jevsceneminer run`")
+    t.add_argument("--out", required=True)
+    t.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
+    t.add_argument("--min-scene", type=float, default=2.0)
+    t.add_argument("--min-prob", type=float, default=0.4)
+    t.add_argument("--require-indicator", action="store_true")
+    t.set_defaults(func=cmd_restitch)
+
+    args = p.parse_args(argv)
+    if args.command == "run":
+        args.topic_lists = yaml.safe_load(Path(args.topics).read_text()) if args.topics else None
+    needs_key = (args.command == "run" and not args.dry_run) or args.command == "classify"
+    if needs_key and not os.environ.get("TYPESAFE_API_KEY"):
+        print("TYPESAFE_API_KEY is not set (put it in .env), or use --dry-run", file=sys.stderr)
+        return 2
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
