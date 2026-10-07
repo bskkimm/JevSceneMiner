@@ -17,7 +17,7 @@ Turn recorded motion, lane geometry and object interactions into readable eviden
 
 ## Boston demo
 
-![Boston driving review with dark BEV, camera trajectory and decision probabilities](docs/assets/boston-demo.jpg)
+https://github.com/user-attachments/assets/1bcbf47f-8285-48d7-8a07-12db10be3ce0
 
 *Real nuPlan footage and Jev results. 3.5× playback · 1 min 22 s · long stops shortened.*
 [Demo details and data attribution](docs/demo.md).

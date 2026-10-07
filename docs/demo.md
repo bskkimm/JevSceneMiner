@@ -3,6 +3,10 @@
 The README shows an actual Boston [nuPlan](https://www.nuscenes.org/nuplan) recording with Jev inference and merged driving decisions.
 It is a curated review example, not a representative accuracy benchmark.
 
+[Watch or download the showcase](https://github.com/user-attachments/assets/1bcbf47f-8285-48d7-8a07-12db10be3ce0).
+
+![Boston turn with dark BEV and decision overlays](assets/boston-demo.jpg)
+
 ## What is shown
 
 - Front camera with the recorded future 10 s path colored by merged lateral scene.
@@ -12,12 +16,15 @@ It is a curated review example, not a representative accuracy benchmark.
 
 The future path comes from logged ego poses, not a prediction.
 Camera projection uses calibration and an approximate landmark-based height reference; it is not a surveyed road-surface reconstruction.
+The source viewer also uses a local, approximate map-alignment review for selected BEV polygons; this is display-only and does not change Jev input evidence.
 The dark theme and white ego outline were applied for the export.
 
 ## Run and review
 
 | Setting | Value |
 | --- | --- |
+| Recording | `2021.10.06.19.27.33_veh-28_00805_01736` |
+| Map | `us-ma-boston`, version `9.12.1817` |
 | Model | `jev-1.13.0` |
 | Questions / canonical sample | `jsm-1.4` / `jsm-sample-1.1` |
 | Context | 10 s past, 15 s future |
