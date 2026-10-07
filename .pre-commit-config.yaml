@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [--maxkb=4096]
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+  - repo: local
+    hooks:
+      - id: python-errors
+        name: Python syntax and undefined-name checks
+        entry: uv run --frozen ruff check --select E9,F63,F7,F82
+        language: system
+        types: [python]
+      - id: public-files
+        name: Public files and credential-pattern check
+        entry: python tools/check_publication.py
+        language: system
+        pass_filenames: false
+        always_run: true
