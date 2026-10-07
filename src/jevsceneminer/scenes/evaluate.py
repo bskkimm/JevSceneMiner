@@ -78,7 +78,9 @@ def match(gt: list, run: list) -> list[tuple[int, int]]:
     for i, (ga, gb, gl) in enumerate(gt):
         for j, (ra, rb, rl) in enumerate(run):
             overlap = min(gb, rb) - max(ga, ra)
-            if gl == rl and overlap >= MIN_OVERLAP_S:
+            # Source timestamps have integer nanosecond precision; floating-point
+            # subtraction can put an exact 0.5 s overlap just below the threshold.
+            if gl == rl and round(overlap * 1e9) >= round(MIN_OVERLAP_S * 1e9):
                 pairs.append((overlap, i, j))
     used_g, used_r, out = set(), set(), []
     for _, i, j in sorted(pairs, reverse=True):

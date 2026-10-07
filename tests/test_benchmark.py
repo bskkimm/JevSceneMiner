@@ -81,6 +81,23 @@ def test_identical_complete_half_grid_intervals_have_full_agreement(fixture, dur
     assert result["confusion_lateral_s"] == {}
 
 
+@pytest.mark.parametrize(("overlap_ns", "matched"), [(500_000_000, 1), (499_999_999, 0)])
+def test_maneuver_match_threshold_uses_nanosecond_precision(fixture, overlap_ns, matched):
+    path, manifest = fixture
+    end = str(T0 + 200_000_000 + overlap_ns)
+    doc = {"scenes": [
+        {"start_ns": a, "end_ns": b, "driving_decision": label,
+         "longitudinal_phases": [{"end_ns": b, "decision": "cruising"}]}
+        for a, b, label in [(stamp(0), stamp(0.2), "keep_lane"),
+                            (stamp(0.2), end, "lane_change_right"), (end, stamp(1), "keep_lane")]
+    ]}
+    session = manifest["sessions"][0]
+    session["end_ns"] = stamp(1)
+    session["gt"] = frozen_file(path.parent, "gt.json", doc)
+    session["runs"]["delayed"] = frozen_file(path.parent, "delayed.json", doc)
+    assert execute(fixture)["gt"]["delayed"]["total"]["TP"] == matched
+
+
 @pytest.mark.parametrize("mutation", ["missing", "hash", "duplicate", "run_missing"])
 def test_input_failure_is_not_silently_skipped(fixture, mutation):
     path, manifest = fixture
