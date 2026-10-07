@@ -15,11 +15,22 @@
 Mine maneuvers from **Autoware rosbags** and **nuPlan logs** with [Jev](https://docs.typesafe.ai/introduction).
 Turn recorded motion, lane geometry and object interactions into readable evidence, then classify each moment and merge it into timestamped scenes.
 
+![Boston highlights: turn right, lane change and lane following](docs/assets/boston-highlights.gif)
+
+*Turn right → lane change → keep lane. Preview from seconds 22–31 of our Boston showcase.*
+
 ## Boston demo
+
+<details>
+<summary><strong>Play the full Boston demo · 1 min 22 s</strong></summary>
+
+Press Play below. The video plays here, without autoplay or looping.
 
 https://github.com/user-attachments/assets/1bcbf47f-8285-48d7-8a07-12db10be3ce0
 
-*Real nuPlan footage and Jev results. 3.5× playback · 1 min 22 s · long stops shortened.*
+</details>
+
+*Real nuPlan footage and Jev results. 3.5× playback · long stops shortened.*
 [Demo details and data attribution](docs/demo.md).
 
 ## What you can do

@@ -1,5 +1,8 @@
 # Boston showcase
 
+The README preview uses seconds 22–31 of the exported video: turn right, lane change, then keep lane.
+The full video is embedded in a collapsible player; playback starts when the reader presses Play and does not loop.
+
 The README shows an actual Boston [nuPlan](https://www.nuscenes.org/nuplan) recording with Jev inference and merged driving decisions.
 It is a curated review example, not a representative accuracy benchmark.
 
