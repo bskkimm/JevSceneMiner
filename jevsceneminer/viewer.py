@@ -3,12 +3,13 @@
     jevsceneminer view out/run1 --sensor-root ~/dataset/nuplan/sensor_blobs --gt gt/ --port 8650
 
 The page (viewer/index.html) shows, per session: the front camera, a bird's-eye view of
-the map with the ego and nearby objects, timeline bars for the GT, Jev and the rule
-baseline, Jev's probability, nuPlan's scenario tags, and the script Jev saw. The GT row
-can be edited and saved to ``<gt>/<session>.json`` (the same format as ``scenes/``).
+the map with the ego and nearby objects, a compact Jev/GT timeline, and the script at
+NOW. Extra signal tracks are available under Details. The GT editor supports labels,
+boundaries, add/split/merge/delete and Undo; Save writes ``<gt>/<session>.json``
+(the same format as ``scenes/``).
 
 The bird's-eye data (map polygons, ego track, objects) depends only on the log and map
-files, not on any run, so it is built once and cached under ``~/.cache/jevsceneminer/bev``
+files and any explicitly configured local display alignment, so it is built once and cached under ``~/.cache/jevsceneminer/bev``
 (keyed by those files' paths, sizes and times). A new run reuses it; its labels and
 probabilities are drawn on top by the page. At start, missing caches are built in the
 background.
@@ -35,7 +36,7 @@ from .lanes import CACHE_DIR
 
 PAGE = Path(__file__).resolve().parent / "viewer" / "index.html"
 BEV_CACHE = CACHE_DIR / "bev"
-BEV_FORMAT = 1
+BEV_FORMAT = 3
 MAP_MARGIN_M = 60.0
 TRACK_EVERY_S = 0.1
 
@@ -48,6 +49,10 @@ class Site:
     def __init__(self, out: Path, gt_dir: Path | None, sensor_root: Path | None, runs: dict[str, Path]):
         self.out, self.gt_dir, self.sensor_root, self.runs = out, gt_dir, sensor_root, runs
         self._bev: dict[str, dict] = {}
+        self._scripts: dict[str, tuple] = {}
+        self._camera_paths = {}
+        self._camera_lock = threading.Lock()
+        self._script_lock = threading.Lock()
         self._lock = threading.Lock()
 
     def sessions(self) -> list[dict]:
@@ -60,6 +65,7 @@ class Site:
         for line in path.read_text().splitlines() if path.exists() else []:
             row = json.loads(line)
             row.pop("script", None)
+            row.pop("facts", None)
             steps.append(row)
         runs = {name: _read_json(folder / f"{sid}.json") for name, folder in self.runs.items()}
         gt = _read_json(self.gt_dir / f"{sid}.json") if self.gt_dir else None
@@ -71,13 +77,21 @@ class Site:
 
     def script(self, sid: str, t_ns: int) -> str:
         path = self.out / "steps" / f"{sid}.jsonl"
-        best, best_dt = "", None
-        for line in path.read_text().splitlines():
-            row = json.loads(line)
-            dt = abs(row["t_ns"] - t_ns)
-            if best_dt is None or dt < best_dt:
-                best, best_dt = row["script"], dt
-        return best
+        # Audit facts can dwarf the displayed script; read them only on a dataset change.
+        with self._script_lock:
+            stat = path.stat()
+            stamp = (stat.st_mtime_ns, stat.st_size)
+            cached = self._scripts.get(sid)
+            if cached is None or cached[0] != stamp:
+                rows = []
+                with path.open() as fh:
+                    for line in fh:
+                        row = json.loads(line)
+                        rows.append((row["t_ns"], row["script"]))
+                cached = (stamp, rows)
+                self._scripts[sid] = cached
+        rows = cached[1]
+        return min(rows, key=lambda row: abs(row[0]-t_ns))[1] if rows else ""
 
     def camera_file(self, sid: str, index: int) -> Path | None:
         frames = _read_json(self.out / "camera" / f"{sid}.json", [])
@@ -85,6 +99,18 @@ class Site:
             return None
         path = (self.sensor_root / frames[index][1]).resolve()
         return path if path.is_file() and self.sensor_root.resolve() in path.parents else None
+
+    def camera_path(self, sid: str, index: int) -> dict:
+        frames = _read_json(self.out / "camera" / f"{sid}.json", [])
+        meta = _read_json(self.out / "meta" / f"{sid}.json", {})
+        if not 0 <= index < len(frames) or meta.get("topics", {}).get("source") != "nuplan":
+            return {"available": False, "reason": "Recorded camera projection requires nuPlan calibration"}
+        from .camera_projection import CameraPath
+        with self._camera_lock:
+            if sid not in self._camera_paths:
+                self._camera_paths[sid] = CameraPath(meta)
+            path = self._camera_paths[sid]
+        return path.frame(*frames[index])
 
     def bev(self, sid: str) -> dict:
         """Map polygons near the path, the ego track and objects, relative to the first pose."""
@@ -107,7 +133,7 @@ class Site:
         if not meta or not meta.get("sources") or not meta.get("map"):
             return None
         parts = [f"bev-v{BEV_FORMAT}"]
-        for f in [*meta["sources"], meta["map"]]:
+        for f in [*meta["sources"], meta["map"], *([meta["bev_alignment"]] if meta.get("bev_alignment") else [])]:
             st = os.stat(f)
             parts.append(f"{Path(f).resolve()}:{st.st_size}:{st.st_mtime_ns}")
         return hashlib.sha1("|".join(parts).encode()).hexdigest()[:20]
@@ -142,20 +168,54 @@ class Site:
         track = [[int(t), round(x - x0, 2), round(y - y0, 2), round(float(w), 3)]
                  for t, x, y, w in zip(e.t[::step], e.x[::step], e.y[::step], e.yaw[::step])]
         area = shapely.LineString(np.column_stack([e.x[::step], e.y[::step]])).buffer(MAP_MARGIN_M)
-        lanes = []
+        alignment = None
+        overrides = {}
+        if meta.get("bev_alignment"):
+            alignment = _read_json(Path(meta["bev_alignment"]))
+            if not alignment or alignment.get("format") != "jsm-bev-alignment-1":
+                raise ValueError("unsupported local BEV alignment format")
+            if Path(alignment["source_map"]).resolve() != Path(meta["map"]).resolve():
+                raise ValueError("local BEV alignment belongs to another source map")
+            if sorted(Path(f).name for f in meta["sources"]) != sorted(alignment["source_logs"]):
+                raise ValueError("local BEV alignment belongs to another source log")
+            for row in alignment["lanes"]:
+                lane_id = row["id"]
+                if lane_id not in lanemap.polygons or lane_id in overrides:
+                    raise ValueError(f"unknown or repeated local BEV lane {lane_id}")
+                poly = shapely.Polygon(row["polygon_xy"])
+                if not poly.is_valid or poly.is_empty or poly.area <= 0:
+                    raise ValueError(f"invalid polygon for local BEV lane {lane_id}")
+                overrides[lane_id] = poly
+        lanes, original_lanes = [], []
         for lane_id, poly in lanemap.polygons.items():
             if not poly.intersects(area):
                 continue
             coords = np.asarray(poly.simplify(0.2).exterior.coords)[:, :2] - [x0, y0]
-            lanes.append({"id": lane_id, "intersection": lanemap.lanes[lane_id].is_intersection,
-                          "xy": np.round(coords, 1).ravel().tolist()})
-        objects = [[int(t), [[o.kind, round(o.x - x0, 1), round(o.y - y0, 1), round(o.yaw, 2), round(o.speed, 1)]
+            row = {"id": lane_id, "intersection": lanemap.lanes[lane_id].is_intersection,
+                   "xy": np.round(coords, 1).ravel().tolist()}
+            original_lanes.append(row)
+            if lane_id in overrides:
+                coords = np.asarray(overrides[lane_id].simplify(0.02).exterior.coords)[:, :2] - [x0, y0]
+                row = dict(row, xy=np.round(coords, 2).ravel().tolist())
+            lanes.append(row)
+        objects = [[int(t), [[o.kind, round(o.x - x0, 1), round(o.y - y0, 1), round(o.yaw, 2), round(o.speed, 1),
+                                  round(o.length_m, 2) if o.length_m else None,
+                                  round(o.width_m, 2) if o.width_m else None]
                              for o in objs]] for t, objs in s.objects]
-        return {"available": True, "lanes": lanes, "track": track, "objects": objects}
+        doc = {"available": True, "lanes": lanes, "track": track, "objects": objects,
+               "origin": [x0, y0],
+               "ego_vehicle": {"length_m": 5.176, "width_m": 2.297, "rear_axle_to_center_m": 1.461}}
+        if alignment:
+            doc["original_lanes"] = original_lanes
+            doc["map_alignment"] = {"description": alignment["description"], "approximate": True,
+                                    "lane_ids": sorted(overrides)}
+        return doc
 
     def save_gt(self, sid: str, doc: dict) -> Path:
         if not self.gt_dir:
             raise PermissionError("start the viewer with --gt to save GT")
+        from .scenes import validate_scene_document
+        validate_scene_document(doc)
         self.gt_dir.mkdir(parents=True, exist_ok=True)
         path = self.gt_dir / f"{sid}.json"
         path.write_text(json.dumps(doc, ensure_ascii=False, indent=1))
@@ -173,7 +233,11 @@ def make_handler(site: Site):
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # Seeking can cancel an in-flight image/projection request.
+
 
         def _json(self, obj, code: int = 200):
             self._send(code, json.dumps(obj).encode())
@@ -183,10 +247,14 @@ def make_handler(site: Site):
             try:
                 if parts == [""]:
                     self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+                elif len(parts) == 1 and parts[0] in {"editor.js", "camera_decisions.js", "bev_geometry.js"}:
+                    self._send(200, PAGE.with_name(parts[0]).read_bytes(), "text/javascript; charset=utf-8")
                 elif parts == ["api", "sessions"]:
                     self._json({"sessions": site.sessions(), "runs": list(site.runs)})
                 elif parts[:2] == ["api", "session"] and len(parts) == 3:
                     self._json(site.session(parts[2]))
+                elif parts[:2] == ["api", "camera-path"] and len(parts) == 4:
+                    self._json(site.camera_path(parts[2], int(parts[3])))
                 elif parts[:2] == ["api", "bev"] and len(parts) == 3:
                     self._json(site.bev(parts[2]))
                 elif parts[:2] == ["api", "script"] and len(parts) == 4:

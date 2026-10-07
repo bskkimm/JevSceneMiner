@@ -20,37 +20,78 @@
     --lane: #2b3140; --lane-x: #252a36; --lane-edge: #4a5264; --accent: #6b9cf0;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 system-ui, sans-serif; }
   header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 16px;
            background: var(--panel); border-bottom: 1px solid var(--line); }
-  header h1 { font-size: 15px; margin: 0 12px 0 0; }
+  header h1 { font-size: 24px; margin: 0 12px 0 0; }
   select, button { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
-                   border-radius: 6px; padding: 3px 8px; }
+                   border-radius: 6px; padding: 6px 10px; }
   button:hover { border-color: var(--accent); }
   button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #session { max-width: 100%; min-width: 0; }
+  .panel h2 select { font-size: 17px; font-weight: normal; }
   #clock { font-variant-numeric: tabular-nums; min-width: 12em; }
   #status { color: var(--muted); margin-left: auto; }
   main { padding: 12px 16px; display: grid; gap: 12px; }
-  .top { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; }
+  .top { display: grid; grid-template-columns: 1fr; gap: 12px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-  .panel h2 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 0; padding: 6px 10px;
-              border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; }
+  .panel h2 { font-size: 22px; font-weight: 700; color: var(--ink); margin: 0; padding: 10px 14px;
+              border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   #cam { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; display: block; }
+  .camera-view { position: relative; background: #000; }
+  #camPath { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .camera-view { container-type: inline-size; }
+  .camera-results { position: absolute; inset: 0; pointer-events: none; color: #fff; }
+  .camera-results[hidden] { display: none; }
+  .camera-prob-stack { position:absolute; right:.8cqw; top:.8cqw; width:19cqw;
+    max-height:calc(100% - 5cqw); overflow:auto; display:flex; flex-direction:column; gap:.43cqw; pointer-events:auto; }
+  .prob-panel { position:static; width:100%; box-sizing:border-box; padding:.54cqw .65cqw;
+    background:rgba(8,12,20,.86); border:.07cqw solid rgba(255,255,255,.25); border-radius:.43cqw;
+    font-size:1.13cqw; line-height:1.4; }
+  .prob-title { font-weight: 750; font-size:1.12em; margin-bottom:.27cqw; }
+  .prob-row { display: flex; justify-content: space-between; gap:.43cqw; color:#c1c9d6; }
+  .prob-row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prob-row.winner { font-weight: 800; color: #fff; font-size: 1.08em; }
+  .prob-row.winner span:first-child { color: var(--decision-color,#00ffff); }
+  .prob-row span:last-child { font-variant-numeric: tabular-nums; }
+  .prob-panel details { pointer-events: auto; }
+  .prob-panel summary { cursor: pointer; color: #c1c9d6; font-size: .85em; }
+  #cameraDecision { position:absolute; left:50%; bottom:0; transform:translateX(-50%);
+    width:max-content; max-width:98cqw; padding:0; border:0; background:transparent;
+    font-size:2.16cqw; font-weight:800; line-height:1; text-align:center;
+    text-shadow:0 .07cqw .14cqw #000,0 0 .18cqw #000; color:var(--decision-color,#fff); }
+  #cameraDecision .longitudinal { color:#d4deef; }
+  #cameraMockBadge { position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    background: #ffcf33; color: #171717; font-weight: 800; font-size: clamp(10px,1.4cqw,14px);
+    padding: 3px 6px; border-radius: 4px; text-align: center; width: 20%; }
+  #mockToggle, #originalMapToggle { font-size: 16px; font-weight: normal; }
+  #pathToggle { margin-left: auto; font-size: 16px; font-weight: normal; color: var(--ink); }
   #camnote, #bevnote { color: var(--muted); padding: 8px 10px; }
   canvas { display: block; width: 100%; }
-  #bev { aspect-ratio: 4 / 3; }
+  #bev { aspect-ratio:5/6; }
+  #bevOverlay { position:absolute; left:.8cqw; top:.8cqw; width:24.597222cqw; z-index:3;
+    border:.1cqw solid #aab5ca; border-radius:.43cqw; box-shadow:0 .2cqw 1cqw #0008; pointer-events:none; }
+  #bevnote, #light { display:none; }
   .bottom { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; }
-  pre#script { margin: 0; padding: 10px; font: 11.5px/1.35 ui-monospace, monospace; white-space: pre;
+  pre#script { margin: 0; padding: 10px; font: 16px/1.5 ui-monospace, monospace; white-space: pre;
                overflow: auto; max-height: 460px; }
   #events { max-height: 460px; overflow: auto; }
   #events table { width: 100%; border-collapse: collapse; }
-  #events td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  #events td { padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   #events tr { cursor: pointer; }
   #events tr:hover { background: var(--bg); }
-  .chip { display: inline-block; padding: 0 6px; border-radius: 4px; color: #fff; font-size: 11px; }
+  .chip { display: inline-block; padding: 0 6px; border-radius: 4px; color: #fff; font-size: 15px; }
   .miss { color: #d14343; } .hit { color: #2e9a52; } .fa { color: #c47f12; }
+  .tl-controls, .editor-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+  .tl-controls label { margin-left: auto; }
+  #gtEditor { border-top: 1px solid var(--line); }
+  #gtEditor summary { cursor: pointer; padding: 10px 14px; font-size: 20px; font-weight: 600; color: var(--ink); }
+  #gtState { margin-left: 8px; font-size: 15px; }
+  #gtEditor input { width: 120px; font: inherit; background: var(--bg); color: var(--ink);
+                    border: 1px solid var(--line); border-radius: 5px; padding: 4px; }
+  #currentLabels { margin-left: auto; font-size: 17px; font-weight: normal; }
   #legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
-  .help { color: var(--muted); font-size: 12px; padding: 0 10px 8px; }
+  .help { color: var(--muted); font-size: 15px; padding: 0 10px 8px; }
   @media (max-width: 900px) { .top, .bottom { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -65,50 +106,75 @@
 </header>
 <main>
   <div class="top">
-    <div class="panel"><h2>Front camera</h2><img id="cam" alt="front camera frame"><div id="camnote"></div></div>
-    <div class="panel"><h2>Bird's-eye view <span id="light"></span></h2><canvas id="bev"></canvas><div id="bevnote"></div></div>
+    <div class="panel"><h2>Front camera <label id="originalMapToggle" hidden><input id="originalMap" type="checkbox"> Original map</label> <label id="mockToggle"><input id="showMock" type="checkbox"> Mock results</label> <label id="pathToggle"><input id="showPath" type="checkbox" checked> Future path · 10 s</label></h2><div class="camera-view"><img id="cam" alt="front camera frame"><canvas id="camPath" aria-label="Recorded future ego trajectory, vehicle width"></canvas><div class="camera-results" id="cameraResults" hidden>
+      <div class="camera-prob-stack"><div class="prob-panel" id="cameraLateral"></div><div class="prob-panel" id="cameraLongitudinal"></div></div>
+      <div id="cameraMockBadge" hidden>MOCK<br>camera preview</div><div id="cameraDecision"></div>
+    </div><div class="panel" id="bevOverlay"><canvas id="bev" aria-label="Fixed 50 meter wide by 60 meter tall bird's-eye view; ego at 95 percent from top"></canvas><span id="light" hidden></span><div id="bevnote" hidden></div></div></div><div id="camnote"></div></div>
   </div>
-  <div class="panel">
-    <h2>Timeline
-      <span style="margin-left:auto"></span>
-      <label>GT brush: <select id="brushLat"></select></label>
-      <select id="brushLon"></select>
-      <select id="gtFrom"><option value="">start GT from…</option></select>
-      <button id="undo" title="z">Undo</button>
-      <button id="save">Save GT</button>
-    </h2>
-    <canvas id="tl"></canvas>
+  <div class="panel" id="timelinePanel">
+    <h2>Scenes <span id="currentLabels"></span></h2>
+    <div class="tl-controls">
+      <button class="zoom" data-seconds="30">30 s</button>
+      <button class="zoom on" data-seconds="60">60 s</button>
+      <button class="zoom" data-seconds="120">120 s</button>
+      <button id="prevScene">‹ scene</button><button id="nextScene">scene ›</button>
+      <button id="follow" class="on">Follow cursor</button>
+      <label><input id="showDetails" type="checkbox"> Details</label>
+    </div>
+    <canvas id="tl" aria-label="Jev and ground truth scene timeline"></canvas>
     <div id="legend"></div>
-    <div class="help">Click to move the cursor · wheel to zoom · shift+wheel or drag the overview to pan ·
-      ←/→ 0.5 s (shift: 5 s) · space play · drag on a GT row to paint the brush label · z undo</div>
+    <div class="help">Click to seek · wheel to zoom · ←/→ 0.5 s · space to play</div>
+    <details id="gtEditor">
+      <summary>Edit GT <span id="gtState"></span></summary>
+      <div class="editor-controls">
+        <button id="seedGt">Start from Jev</button><button id="addGt">＋ Add at cursor</button>
+        <button id="splitGt">Split at cursor</button><button id="mergeGt">Merge left</button>
+        <button id="deleteGt">Delete</button><button id="undo" title="z">Undo</button><button id="save">Save GT</button>
+      </div>
+      <div class="editor-controls">
+        <label>Start (s) <input id="gtStart" type="number" step="0.1" aria-label="GT start seconds"></label>
+        <label>End (s) <input id="gtEnd" type="number" step="0.1" aria-label="GT end seconds"></label>
+        <select id="brushLat" aria-label="GT lateral label"></select>
+        <select id="brushLon" aria-label="New scene initial speed" hidden></select>
+        <button id="applyGt">Apply</button>
+      </div>
+      <div id="phaseEditor" class="editor-controls"></div>
+      <div class="help" id="gtHelp">Click a GT bar to select it · drag its blue edges to resize · shift+drag on GT to label a range.
+        Times are seconds from the recording start. Shared edges also move the neighboring scene's edge.</div>
+    </details>
   </div>
   <div class="bottom">
-    <div class="panel"><h2>Script Jev saw (nearest step)</h2><pre id="script"></pre></div>
+    <div class="panel"><h2>Script at NOW (nearest sample)</h2><pre id="script"></pre></div>
     <div class="panel"><h2>Maneuvers
-      <select id="evFilter"><option value="all">all</option><option value="miss">missed</option>
-        <option value="fa">false alarms</option></select>
       <select id="evLabel"><option value="">all labels</option></select></h2>
       <div id="events"></div></div>
   </div>
 </main>
+<script src="/editor.js"></script>
+<script src="/camera_decisions.js"></script>
+<script src="/bev_geometry.js"></script>
 <script>
 "use strict";
 const LAT = ["keep_lane", "turn_left", "turn_right", "u_turn", "lane_change_left", "lane_change_right",
-             "avoidance", "pull_over", "pull_away"];
-const LON = ["stopped", "accelerating", "decelerating", "hard_braking", "cruising"];
+             "branch_left", "branch_right", "avoidance", "pull_over", "pull_away"];
+const LON = ["unknown", "stopped", "accelerating", "decelerating", "hard_braking", "cruising"];
 const COLORS = {
-  keep_lane: "#9aa3b5", turn_left: "#2f6fde", turn_right: "#d9534f", u_turn: "#7b4fd6",
-  lane_change_left: "#1aa39a", lane_change_right: "#e08a1e", avoidance: "#c2449b", pull_over: "#6c8c1c",
+  keep_lane: "#9aa3b5", turn_left: "#ff8c32", turn_right: "#ff8c32", u_turn: "#7b4fd6",
+  lane_change_left: "#ffcf33", lane_change_right: "#ffcf33", avoidance: "#c2449b", pull_over: "#6c8c1c",
   pull_away: "#8a5a2b", stopped: "#5b6275", accelerating: "#3aa55d", decelerating: "#e0b21e",
-  hard_braking: "#d14343", cruising: "#b9c1d3",
+  hard_braking: "#d14343", cruising: "#b9c1d3", branch_left: "#ffcf33", branch_right: "#ffcf33",
 };
+// One lateral palette across timeline, BEV, camera and raw winners.
+COLORS.keep_lane='#00ffff';
+for(const label of LON)COLORS[label]='#d4deef';
+const CAMERA_COLORS={...COLORS};
 const KIND_SIZE = { car: [4.6, 1.9], truck: [8, 2.5], bus: [11, 2.6], bicycle: [1.8, 0.6],
                     pedestrian: [0.6, 0.6], "traffic cone": [0.4, 0.4], barrier: [1.5, 0.4] };
 const KIND_COLOR = { car: "#2f6fde", pedestrian: "#d9534f", bicycle: "#e08a1e", "traffic cone": "#e0b21e" };
 
 const $ = (id) => document.getElementById(id);
 const S = { sid: null, data: null, bev: null, t: 0, v0: 0, v1: 120, playing: false,
-            gt: null, undo: [], dirty: false, t0: 0, t1: 0, runs: [] };
+            gt: null, gtScenes: [], selected: -1, undo: [], dirty: false, follow: true, t0: 0, t1: 0, runs: [] };
 
 // ---------- helpers ----------
 const sec = (ns) => Number(ns) / 1e9;
@@ -124,58 +190,67 @@ function nearest(arr, x, key = (v) => v) {
   if (i + 1 < arr.length && Math.abs(key(arr[i + 1]) - x) < Math.abs(key(arr[i]) - x)) return i + 1;
   return i;
 }
-function spansOf(doc, key) {                          // merged [a, b, label] in seconds
-  const out = [];
-  for (const s of (doc && doc.scenes) || []) {
-    const a = sec(s.start_ns), b = sec(s.end_ns), l = s[key];
-    const last = out[out.length - 1];
-    if (last && last[2] === l && Math.abs(a - last[1]) < 1e-3) last[1] = b; else out.push([a, b, l]);
-  }
-  return out;
+function spansOf(doc, key) {
+  const scenes = scenesFrom(doc);
+  return key === "lateral" ? scenes.map(s => [s.start,s.end,s.lateral]) : scenes.flatMap(s => {
+    let start=s.start; return s.phases.map(p => { const row=[start,p.end,p.decision]; start=p.end; return row; });
+  });
 }
 const maneuvers = (sp) => sp.filter((s) => s[2] !== "keep_lane");
-const mainRun = () => { const n = S.runs.find((r) => S.data.runs[r]); return n ? [n, S.data.runs[n]] : [null, null]; };
+const mainRun = () => ["jev", S.data?.runs.jev || null];
+const pretty = label => (label || "unlabeled").replaceAll("_", " ");
 const overlap = (a, b) => Math.min(a[1], b[1]) - Math.max(a[0], b[0]);
 const fmt = (s) => { const d = s - S.t0; const m = Math.floor(d / 60); return `${m}:${(d - 60 * m).toFixed(1).padStart(4, "0")}`; };
 
 // ---------- loading ----------
 async function init() {
   const r = await (await fetch("/api/sessions")).json();
-  S.runs = r.runs;
+  S.runs = ["jev"];
   for (const s of r.sessions) $("session").add(new Option(`${s.location || s.date} · ${s.name}`, s.sid));
   for (const l of LAT) $("brushLat").add(new Option(l, l));
   for (const l of LON) $("brushLon").add(new Option(l, l));
   for (const l of LAT.slice(1)) $("evLabel").add(new Option(l, l));
-  for (const n of S.runs) $("gtFrom").add(new Option(`start GT from ${n}`, n));
-  $("brushLon").add(new Option("(lateral only)", ""), 0); $("brushLon").value = "";
-  $("legend").innerHTML = [...LAT, ...LON].map((l) => `<span class="chip" style="background:${COLORS[l]}">${l}</span>`).join("");
+  $("showMock").checked = new URLSearchParams(location.search).get("mock") === "1";
   const hash = new URLSearchParams(location.hash.slice(1));
   if (hash.get("s")) $("session").value = hash.get("s");
   await load($("session").value);
   if (hash.get("t")) { const t = S.t0 + +hash.get("t"); setTime(t); centerView(t); }
 }
 
+let sessionGeneration = 0;
 async function load(sid) {
   if (S.dirty && !confirm("Unsaved GT edits will be lost. Continue?")) { $("session").value = S.sid; return; }
-  S.sid = sid; S.bev = null; S.dirty = false; S.undo = [];
+  const generation = ++sessionGeneration;
+  if (S.playing) togglePlay();
+  S.sid = sid; S.data = null; S.camTimes = []; S.bev = null; S.dirty = false; S.undo = []; S.selected = -1;
+  S.drag = null; S.gtScenes = []; syncGt(); renderEditor();
+  clearTimeout(scriptTimer); $("script").textContent = ""; $("events").replaceChildren();
+  $("play").disabled = true;
+  camIdx = -1; camBusy = false; cameraGeneration++; clearCameraPath(); scriptFor = null;
   history.replaceState(null, "", `#s=${encodeURIComponent(sid)}`);   // add &t=<seconds> to open at a time
   status("loading…");
-  S.data = await (await fetch(`/api/session/${encodeURIComponent(sid)}`)).json();
+  let data;
+  try { data = await (await fetch(`/api/session/${encodeURIComponent(sid)}`)).json(); }
+  catch (error) { if (generation === sessionGeneration) status(`Loading failed: ${error.message}`); return; }
+  if (generation !== sessionGeneration || sid !== S.sid) return;
+  S.data = data; cameraMock=null; cameraOverlayKey=null; $("play").disabled = false;
   const m = S.data.meta;
   S.t0 = sec(m.start_ns); S.t1 = sec(m.end_ns);
-  S.t = S.t0; S.v0 = S.t0; S.v1 = Math.min(S.t1, S.t0 + 120);
-  S.gt = S.data.gt ? { lat: spansOf(S.data.gt, "lateral"), lon: spansOf(S.data.gt, "longitudinal") } : { lat: [], lon: [] };
+  S.t = S.t0; S.v0 = S.t0; S.v1 = Math.min(S.t1, S.t0 + 60); S.follow = true;
+  $("follow").classList.add("on");
+  S.gtScenes = scenesFrom(S.data.gt); syncGt();
   S.probs = S.data.steps.filter((r) => r.lateral).map((r) => [r.t_ns / 1e9, r.lateral_probs[r.lateral] || 0, r.lateral]);
   S.camTimes = S.data.camera.map((t) => t / 1e9);
   $("camnote").textContent = S.camTimes.length ? "" : "No camera frames for this session (pass --sensor-root for nuPlan).";
   $("save").disabled = !S.data.gt_writable;
   $("save").title = S.data.gt_writable ? "Save to the --gt folder" : "Start the viewer with --gt to save";
   status(`${S.data.steps.length} steps · ${m.traffic_side || "?"}-hand traffic · indicator ${m.has_indicator === false ? "not recorded" : "recorded"}`);
-  drawAll(); renderEvents(); loadScript();
+  drawAll(); renderEvents(); renderEditor(); loadScript();
   $("bevnote").textContent = "loading the map view (cached after the first build, ~15 s)…"; drawBev();
   fetch(`/api/bev/${encodeURIComponent(sid)}`).then((r) => r.json()).then((b) => {
-    if (sid !== S.sid) return;
-    S.bev = b; $("bevnote").textContent = b.available ? "" : b.reason; drawBev();
+    if (sid !== S.sid || generation !== sessionGeneration) return;
+    S.bev = b; $("bevnote").textContent = b.available ? (b.map_alignment?.description || "") : b.reason;
+    $("originalMapToggle").hidden = !b.map_alignment; $("originalMap").checked = false; drawBev();
   });
 }
 const status = (t) => { $("status").textContent = t; };
@@ -183,19 +258,32 @@ const status = (t) => { $("status").textContent = t; };
 // ---------- timeline ----------
 const ROWS = [];   // built in drawTimeline: {name, y, h, kind}
 function rowSpec() {
-  const rows = [{ id: "overview", label: "overview", h: 14 }, { id: "gt:lat", label: "GT lateral", h: 18 },
-                { id: "gt:lon", label: "GT speed", h: 12 }];
-  for (const n of S.runs) {
-    rows.push({ id: `${n}:lat`, label: `${n} lateral`, h: 18 }, { id: `${n}:lon`, label: `${n} speed`, h: 12 });
-    if (n === "jev") rows.push({ id: "prob", label: "Jev prob", h: 34 });
+  const rows = [{id: "overview", label: "Overview", h: 20},
+                {id: "jev:lat", label: "Jev", h: 48}, {id: "gt:lat", label: "GT", h: 48}];
+  if ($("showDetails").checked) {
+    rows.push({id: "jev:lon", label: "Jev speed", h: 34}, {id: "gt:lon", label: "GT speed", h: 34});
+    if (S.probs.length) rows.push({id: "prob", label: "Probability", h: 40});
+    if (S.data.tags.length) rows.push({id: "tags", label: "nuPlan tags", h: 24});
+    if (S.data.meta.has_indicator !== false && S.data.indicator.length)
+      rows.push({id: "ind", label: "Indicator", h: 24});
   }
-  rows.push({ id: "tags", label: "nuPlan tags", h: 14 }, { id: "ind", label: "indicator", h: 10 });
+  rows.push({id: "ruler", label: "Time", h: 32});
   return rows;
 }
+function renderLegend() {
+  const labels = new Set([...S.gtScenes.map(s => s.lateral), ...spansOf(mainRun()[1], "lateral").map(s => s[2])]);
+  if ($("showDetails").checked) {
+    for (const s of S.gtScenes) s.phases.forEach(p => labels.add(p.decision));
+    for (const s of spansOf(mainRun()[1], "longitudinal")) labels.add(s[2]);
+  }
+  $("legend").innerHTML = [...labels].filter(l => COLORS[l]).map(l =>
+    `<span class="chip" style="background:${COLORS[l]}">${pretty(l)}</span>`).join("");
+}
 function drawTimeline() {
-  const cv = $("tl"), W = cv.clientWidth, L = 110, rows = rowSpec();
+  if (!S.data) return;
+  const cv = $("tl"), W = cv.clientWidth, L = 144, rows = rowSpec();
   let y = 6; ROWS.length = 0;
-  for (const r of rows) { ROWS.push({ ...r, y }); y += r.h + 5; }
+  for (const r of rows) { ROWS.push({ ...r, y }); y += r.h + 8; }
   const H = y + 4, dpr = devicePixelRatio || 1;
   cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -203,27 +291,61 @@ function drawTimeline() {
   const ink = css.getPropertyValue("--ink"), muted = css.getPropertyValue("--muted"), line = css.getPropertyValue("--line");
   const X = (t) => L + ((t - S.v0) / (S.v1 - S.v0)) * (W - L - 8);
   const OX = (t) => L + ((t - S.t0) / (S.t1 - S.t0)) * (W - L - 8);
-  g.font = "11px system-ui"; g.textBaseline = "middle";
+  g.font = "15px system-ui"; g.textBaseline = "middle";
   const bars = (sp, r, xf = X) => {
+    g.save(); g.font = "600 17px system-ui";
     for (const [a, b, l] of sp) {
       const x0 = Math.max(L, xf(a)), x1 = Math.min(W - 8, xf(b));
       if (x1 <= x0) continue;
       g.fillStyle = COLORS[l] || "#888"; g.fillRect(x0, r.y, x1 - x0, r.h);
-      if (r.h >= 18 && x1 - x0 > 60 && l !== "keep_lane") { g.fillStyle = "#fff"; g.fillText(l, x0 + 4, r.y + r.h / 2); }
+      g.strokeStyle = line; g.strokeRect(x0 + .5, r.y + .5, Math.max(0, x1 - x0 - 1), r.h - 1);
+      let label = pretty(l);
+      const room = x1 - x0 - 16;
+      if (r.h >= 28 && room > g.measureText("…").width) {
+        if (g.measureText(label).width > room) {
+          while (label.length && g.measureText(label + "…").width > room) label = label.slice(0, -1);
+          label += "…";
+        }
+        g.fillStyle = l === "keep_lane" || l === "cruising" ? "#17202b" : "#fff";
+        g.fillText(label, x0 + 8, r.y + r.h / 2);
+      }
     }
+    g.restore();
   };
   for (const r of ROWS) {
-    g.fillStyle = muted; g.fillText(r.label, 4, r.y + r.h / 2);
+    g.save(); g.font = "600 16px system-ui"; g.fillStyle = muted; g.fillText(r.label, 8, r.y + r.h / 2); g.restore();
     g.strokeStyle = line; g.strokeRect(L + 0.5, r.y + 0.5, W - L - 8, r.h);
     const [who, key] = r.id.split(":");
     if (r.id === "overview") {
-      bars(spansOf(mainRun()[1], "lateral"), r, OX);
+      bars(S.gt.lat.length ? S.gt.lat : spansOf(mainRun()[1], "lateral"), r, OX);
       g.strokeStyle = ink; g.lineWidth = 2; g.strokeRect(OX(S.v0), r.y - 1, OX(S.v1) - OX(S.v0), r.h + 2); g.lineWidth = 1;
     } else if (who === "gt") {
       bars(key === "lat" ? S.gt.lat : S.gt.lon, r);
-      if (!S.gt.lat.length && !S.gt.lon.length) { g.fillStyle = muted; g.fillText("no GT yet: paint here, or “start GT from…”", L + 6, r.y + r.h / 2); }
+      if (!S.gtScenes.length) { g.fillStyle = muted; g.fillText("No GT yet — open Edit GT to label", L + 6, r.y + r.h / 2); }
+      const selected = S.gtScenes[S.selected];
+      if (selected && $("gtEditor").open && key === "lat") {
+        const a = X(selected.start), b = X(selected.end);
+        g.strokeStyle = "#2f6fde"; g.lineWidth = 2;
+        g.strokeRect(Math.max(L, a), r.y - 2, Math.max(0, Math.min(W - 8, b) - Math.max(L, a)), r.h + 4);
+        for (const edge of [a, b]) if (edge >= L && edge <= W - 8) {
+          g.fillStyle = "#2f6fde"; g.fillRect(edge - 3, r.y - 4, 6, r.h + 8);
+        }
+        g.lineWidth = 1;
+      }
     } else if (key === "lat" || key === "lon") {
-      bars(spansOf(S.data.runs[who], key === "lat" ? "lateral" : "longitudinal"), r);
+      const doc = S.data.runs[who];
+      bars(spansOf(doc, key === "lat" ? "lateral" : "longitudinal"), r);
+      if (!doc || !doc.scenes.length) { g.fillStyle = muted; g.fillText("No Jev results yet", L + 6, r.y + r.h / 2); }
+    } else if (r.id === "ruler") {
+      const interval = [5, 10, 15, 30, 60, 120].find(t => t * (W - L - 8) / (S.v1 - S.v0) >= 64) || 120;
+      const first = Math.ceil((S.v0 - S.t0) / interval) * interval;
+      for (let offset = first; S.t0 + offset <= S.v1; offset += interval) {
+        const x = X(S.t0 + offset);
+        g.strokeStyle = line; g.beginPath(); g.moveTo(x, ROWS[1].y); g.lineTo(x, r.y + 5); g.stroke();
+        g.fillStyle = muted; g.textAlign = "center";
+        if (x > L + 18 && x < W - 26) g.fillText(fmt(S.t0 + offset), x, r.y + r.h / 2);
+        g.textAlign = "left";
+      }
     } else if (r.id === "prob") {
       g.strokeStyle = line; g.beginPath(); g.moveTo(L, r.y + r.h / 2); g.lineTo(W - 8, r.y + r.h / 2); g.stroke();
       for (const [t, p, l] of S.probs) {
@@ -246,11 +368,15 @@ function drawTimeline() {
   }
   const cx = X(S.t);
   if (cx >= L) { g.strokeStyle = ink; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx, ROWS[1].y - 3); g.lineTo(cx, H - 2); g.stroke(); g.lineWidth = 1; }
-  if (S.drag && S.drag.row.startsWith("gt:")) {
+  if (S.drag && !S.drag.edge && S.drag.row.startsWith("gt:")) {
     g.fillStyle = "rgba(47,111,222,.35)"; const r = ROWS.find((q) => q.id === S.drag.row);
     g.fillRect(X(Math.min(S.drag.a, S.drag.b)), r.y, Math.abs(X(S.drag.b) - X(S.drag.a)), r.h);
   }
   S.tlGeom = { L, W, X, OX };
+  const jev = (S.data.runs.jev && S.data.runs.jev.scenes || []).find(s => sec(s.start_ns) <= S.t && S.t < sec(s.end_ns));
+  const gt = S.gtScenes.find(s => s.start <= S.t && S.t < s.end);
+  $("currentLabels").textContent = `Jev: ${jev ? pretty(jev.driving_decision || jev.lateral) : "—"} · GT: ${gt ? pretty(gt.lateral) : "—"}`;
+  renderLegend();
 }
 
 function tlEvent(ev) {
@@ -260,226 +386,475 @@ function tlEvent(ev) {
   const frac = Math.min(1, Math.max(0, (x - L) / (W - L - 8)));
   return { row: row ? row.id : null, t: S.v0 + frac * (S.v1 - S.v0), to: S.t0 + frac * (S.t1 - S.t0), x };
 }
-$("tl").addEventListener("mousedown", (ev) => {
+$("tl").addEventListener("mousemove", ev => {
+  if (!S.data || S.drag) return;
+  const e = tlEvent(ev), [who, key] = (e.row || "").split(":");
+  const spans = who === "gt" ? (key === "lat" ? S.gt.lat : S.gt.lon) :
+    spansOf(S.data.runs[who], key === "lat" ? "lateral" : "longitudinal");
+  const span = ["lat", "lon"].includes(key) && spans.find(([a,b]) => a <= e.t && e.t < b);
+  $("tl").title = span ? `${pretty(span[2])} · ${fmt(span[0])}–${fmt(span[1])}` : "";
+});
+$("tl").addEventListener("mousedown", ev => {
+  if (!S.data) return;
   const e = tlEvent(ev);
   if (e.x < S.tlGeom.L) return;
-  if (e.row === "overview") { S.drag = { row: "overview" }; centerView(e.to); return; }
-  if (e.row && e.row.startsWith("gt:") && (e.row === "gt:lat" || $("brushLon").value)) { S.drag = { row: e.row, a: e.t, b: e.t }; return; }
+  if (e.row === "overview") { setFollow(false); S.drag = {row: "overview"}; centerView(e.to); return; }
+  if (e.row === "gt:lat" || e.row === "gt:lon") {
+    const selected = S.gtScenes[S.selected];
+    if (selected && $("gtEditor").open && S.data.gt_writable) {
+      const edge = Math.abs(e.x - S.tlGeom.X(selected.start)) <= 7 ? "start" :
+                   Math.abs(e.x - S.tlGeom.X(selected.end)) <= 7 ? "end" : null;
+      if (edge) {
+        if (S.playing) togglePlay();
+        S.drag = {row: e.row, edge, original: S.gtScenes, started: false}; return;
+      }
+    }
+    if (ev.shiftKey && S.data.gt_writable) {
+      $("gtEditor").open = true; if (S.playing) togglePlay();
+      S.drag = {row: e.row, a: e.t, b: e.t}; return;
+    }
+    const index = S.gtScenes.findIndex(s => s.start <= e.t && e.t < s.end);
+    if (index >= 0) { selectGt(index); setTime(e.t); return; }
+  }
   setTime(e.t);
 });
-addEventListener("mousemove", (ev) => {
+addEventListener("mousemove", ev => {
   if (!S.drag) return;
-  const e = tlEvent(ev);
-  if (S.drag.row === "overview") centerView(e.to); else { S.drag.b = e.t; drawTimeline(); }
+  const e = tlEvent(ev), d = S.drag;
+  if (d.row === "overview") { centerView(e.to); return; }
+  if (d.edge) {
+    const value = S.t0 + Math.round((e.t - S.t0) * 10) / 10;
+    const updated = SceneEditor.update(d.original, S.selected, {[d.edge]: value}, [S.t0, S.t1]);
+    if (JSON.stringify(updated) === JSON.stringify(S.gtScenes)) return;
+    if (!d.started) { pushUndo(); d.started = true; }
+    S.gtScenes = updated; S.dirty = true; syncGt(); drawTimeline(); renderEditor(); renderEvents(); return;
+  }
+  d.b = e.t; drawTimeline();
 });
 addEventListener("mouseup", () => {
   const d = S.drag; S.drag = null;
-  if (!d || d.row === "overview") return;
+  if (!d || d.row === "overview" || d.edge) return;
+  if (d.row !== "gt:lat") { setTime(d.a); return; }
   const a = Math.min(d.a, d.b), b = Math.max(d.a, d.b);
   if (b - a < 0.2) { setTime(d.a); return; }
-  pushUndo();
-  if (d.row === "gt:lat") S.gt.lat = paint(S.gt.lat, a, b, $("brushLat").value);
-  else S.gt.lon = paint(S.gt.lon, a, b, $("brushLon").value);
-  S.dirty = true; drawTimeline(); renderEvents();
+  const patch = d.row === "gt:lat" ? {lateral: $("brushLat").value} : {longitudinal: $("brushLon").value};
+  commitGt(S.gtScenes.length ? SceneEditor.paintRow(S.gtScenes, a, b, patch, [S.t0, S.t1]) :
+    SceneEditor.paint([],a,b,{lateral:patch.lateral,phases:[{end:b,decision:"unknown"}]},[S.t0,S.t1]));
+  S.selected = S.gtScenes.findIndex(s => s.start <= (a + b) / 2 && (a + b) / 2 < s.end); renderEditor(); drawTimeline();
 });
 $("tl").addEventListener("wheel", (ev) => {
-  ev.preventDefault();
+  ev.preventDefault(); setFollow(false);
   const e = tlEvent(ev), span = S.v1 - S.v0;
   if (ev.shiftKey) { const d = (ev.deltaY + ev.deltaX) / 500 * span; setView(S.v0 + d, S.v1 + d); return; }
   const k = ev.deltaY > 0 ? 1.25 : 0.8, ns = Math.min(S.t1 - S.t0, Math.max(10, span * k));
   const f = (e.t - S.v0) / span; setView(e.t - f * ns, e.t - f * ns + ns);
 }, { passive: false });
 function setView(a, b) {
-  const span = b - a; a = Math.max(S.t0, Math.min(a, S.t1 - span)); S.v0 = a; S.v1 = a + span; drawTimeline();
+  const span = Math.min(S.t1 - S.t0, b - a); a = Math.max(S.t0, Math.min(a, S.t1 - span));
+  S.v0 = a; S.v1 = a + span;
+  for (const button of document.querySelectorAll(".zoom")) button.classList.toggle("on", Math.abs(span - +button.dataset.seconds) < .01);
+  drawTimeline();
 }
-const centerView = (t) => { const h = (S.v1 - S.v0) / 2; setView(t - h, t + h); };
+const centerView = t => { const span = S.v1 - S.v0; setView(t - span / 3, t + 2 * span / 3); };
+function setFollow(on) { S.follow = on; $("follow").classList.toggle("on", on); }
+$("follow").onclick = () => { setFollow(!S.follow); if (S.follow) centerView(S.t); };
+$("showDetails").onchange = drawTimeline;
+for (const button of document.querySelectorAll(".zoom")) button.onclick = () => {
+  const span = Math.min(+button.dataset.seconds, S.t1 - S.t0); setView(S.t - span / 3, S.t + 2 * span / 3);
+};
+function jumpScene(direction) {
+  const scenes = S.gtScenes.length ? S.gtScenes : scenesFrom(mainRun()[1]);
+  const starts = scenes.map(s => s.start);
+  const time = direction > 0 ? starts.find(t => t > S.t + .05) : starts.findLast(t => t < S.t - .05);
+  if (time === undefined) return;
+  setTime(time); centerView(time);
+  if (S.gtScenes.length && $("gtEditor").open) selectGt(starts.indexOf(time));
+}
+$("prevScene").onclick = () => jumpScene(-1); $("nextScene").onclick = () => jumpScene(1);
 
 // ---------- GT editing ----------
-function paint(sp, a, b, label) {
-  const out = [];
-  for (const [x, y, l] of sp) {
-    if (y <= a || x >= b) { out.push([x, y, l]); continue; }
-    if (x < a) out.push([x, a, l]);
-    if (y > b) out.push([b, y, l]);
-  }
-  out.push([a, b, label]); out.sort((p, q) => p[0] - q[0]);
-  const merged = [];
-  for (const s of out) {
-    const last = merged[merged.length - 1];
-    if (last && last[2] === s[2] && s[0] - last[1] < 1e-3) last[1] = Math.max(last[1], s[1]); else merged.push([...s]);
-  }
-  return merged;
+function scenesFrom(doc) { return SceneEditor.fromDocument(doc); }
+function syncGt() {
+  S.gt = {lat: S.gtScenes.map(s => [s.start,s.end,s.lateral]), lon: S.gtScenes.flatMap(s => {
+    let start=s.start; return s.phases.map(p => {const row=[start,p.end,p.decision]; start=p.end; return row;});
+  })};
 }
-function pushUndo() { S.undo.push(JSON.stringify(S.gt)); if (S.undo.length > 100) S.undo.shift(); }
-$("undo").onclick = () => { if (S.undo.length) { S.gt = JSON.parse(S.undo.pop()); S.dirty = true; drawTimeline(); renderEvents(); } };
-$("gtFrom").onchange = () => {
-  const n = $("gtFrom").value; $("gtFrom").value = "";
-  if (!n || ((S.gt.lat.length || S.gt.lon.length) && !confirm(`Replace the GT with ${n}?`))) return;
-  pushUndo();
-  S.gt = { lat: spansOf(S.data.runs[n], "lateral"), lon: spansOf(S.data.runs[n], "longitudinal") };
-  S.dirty = true; drawTimeline(); renderEvents();
+function pushUndo() { S.undo.push(JSON.stringify({scenes: S.gtScenes, selected: S.selected})); if (S.undo.length > 100) S.undo.shift(); }
+function commitGt(scenes) {
+  if (JSON.stringify(scenes) === JSON.stringify(S.gtScenes)) return;
+  pushUndo(); S.gtScenes = scenes; S.dirty = true; syncGt(); drawTimeline(); renderEvents(); renderEditor();
+}
+function selectGt(index) {
+  S.selected = index; $("gtEditor").open = true; if (S.playing) togglePlay(); renderEditor(); drawTimeline();
+}
+function renderEditor() {
+  const selected = S.gtScenes[S.selected], writable = !!S.data?.gt_writable;
+  for (const id of ["applyGt", "splitGt", "mergeGt", "deleteGt", "gtStart", "gtEnd"])
+    $(id).disabled = !selected || !writable;
+  $("mergeGt").disabled = !writable || S.selected <= 0 || !selected || Math.abs(S.gtScenes[S.selected - 1].end - selected.start) > 1e-5;
+  $("seedGt").disabled = !writable || !scenesFrom(mainRun()[1]).length;
+  $("brushLat").disabled = !writable;
+  $("addGt").disabled = !writable; $("save").disabled = !writable || !S.dirty || S.saving;
+  $("undo").disabled = !writable || !S.undo.length;
+  $("gtState").textContent = !writable ? "Read only" : `${S.dirty ? "● Unsaved · " : ""}${S.gtScenes.length} scenes`;
+  if (selected) {
+    $("gtStart").value = (selected.start - S.t0).toFixed(1); $("gtEnd").value = (selected.end - S.t0).toFixed(1);
+    $("brushLat").value = selected.lateral; $("brushLon").value = selected.phases[0].decision;
+  } else { $("gtStart").value = ""; $("gtEnd").value = ""; }
+  const host=$("phaseEditor"); host.replaceChildren();
+  if (selected) {
+    const title=document.createElement("span"); title.textContent="Speed phases"; host.append(title);
+    selected.phases.forEach((p,i) => {
+      const row=document.createElement("label"); row.style.borderBottom=`4px solid ${COLORS[p.decision] || '#888'}`;
+      const pick=document.createElement("select"); LON.forEach(l=>pick.add(new Option(pretty(l),l))); pick.value=p.decision; pick.disabled=!writable;
+      pick.onchange=()=>commitGt(SceneEditor.phaseUpdate(S.gtScenes,S.selected,i,{decision:pick.value}));
+      const end=document.createElement("input"); end.type="number"; end.step="0.1"; end.value=(p.end-S.t0).toFixed(3); end.disabled=!writable || i===selected.phases.length-1; end.setAttribute("aria-label",`Phase ${i+1} end seconds`);
+      end.onchange=()=>{try {commitGt(SceneEditor.phaseUpdate(S.gtScenes,S.selected,i,{end:S.t0+Number(end.value)}));} catch(e){status(e.message);renderEditor();}};
+      const del=document.createElement("button"); del.textContent="Delete phase"; del.disabled=!writable || selected.phases.length===1; del.onclick=()=>commitGt(SceneEditor.phaseRemove(S.gtScenes,S.selected,i));
+      row.append(pick,document.createTextNode(" ends "),end,del);host.append(row);
+    });
+    const add=document.createElement("button"); add.id="splitPhase"; add.textContent="Add / split phase at cursor"; add.disabled=!writable || S.t<=selected.start || S.t>=selected.end;
+    add.onclick=()=>commitGt(SceneEditor.phaseSplit(S.gtScenes,S.selected,S.t));host.append(add);
+  }
+}
+$("gtEditor").ontoggle = () => { renderEditor(); drawTimeline(); };
+$("undo").onclick = () => {
+  if (!S.undo.length) return;
+  const old = JSON.parse(S.undo.pop()); S.gtScenes = old.scenes; S.selected = old.selected;
+  S.dirty = true; syncGt(); drawTimeline(); renderEvents(); renderEditor();
+};
+$("seedGt").onclick = () => {
+  if (S.gtScenes.length && !confirm("Replace the current GT with Jev scenes?")) return;
+  commitGt(scenesFrom(mainRun()[1])); S.selected = S.gtScenes.length ? 0 : -1; renderEditor(); drawTimeline();
+};
+$("addGt").onclick = () => {
+  const start = Math.min(S.t, S.t1 - .1), end = Math.min(start + 2, S.t1);
+  commitGt(SceneEditor.paint(S.gtScenes, start, end,
+    {lateral: $("brushLat").value, phases:[{end,decision:"unknown"}]}, [S.t0, S.t1]));
+  S.selected = S.gtScenes.findIndex(s => s.start <= start && start < s.end); renderEditor(); drawTimeline();
+};
+$("applyGt").onclick = () => {
+  if (S.selected < 0) return;
+  try {
+    if ($("gtStart").value === "" || $("gtEnd").value === "") throw new Error("Enter both start and end times.");
+    commitGt(SceneEditor.update(S.gtScenes, S.selected,
+      {start: S.t0 + +$("gtStart").value, end: S.t0 + +$("gtEnd").value,
+       lateral: $("brushLat").value}, [S.t0, S.t1]));
+  } catch (error) { status(error.message); }
+};
+$("splitGt").onclick = () => {
+  const index = S.selected, before = S.gtScenes.length;
+  commitGt(SceneEditor.split(S.gtScenes, index, S.t));
+  if (S.gtScenes.length > before) S.selected = index + 1;
+  renderEditor(); drawTimeline();
+};
+$("mergeGt").onclick = () => {
+  const index = S.selected; commitGt(SceneEditor.mergeLeft(S.gtScenes, index)); S.selected = Math.max(0, index - 1); renderEditor(); drawTimeline();
+};
+$("deleteGt").onclick = () => {
+  commitGt(SceneEditor.remove(S.gtScenes, S.selected)); S.selected = Math.min(S.selected, S.gtScenes.length - 1); renderEditor(); drawTimeline();
 };
 function gtDocument() {
-  const cuts = new Set([S.t0, S.t1]);
-  for (const [a, b] of [...S.gt.lat, ...S.gt.lon]) { cuts.add(Math.max(S.t0, a)); cuts.add(Math.min(S.t1, b)); }
-  const ts = [...cuts].sort((a, b) => a - b), at = (sp, t) => { const s = sp.find((q) => q[0] <= t && t < q[1]); return s ? s[2] : null; };
-  const scenes = [];
-  for (let i = 0; i + 1 < ts.length; i++) {
-    const a = ts[i], b = ts[i + 1], mid = (a + b) / 2;
-    if (b - a < 1e-3) continue;
-    const lat = at(S.gt.lat, mid), lon = at(S.gt.lon, mid);
-    if (!lat && !lon) continue;
-    const last = scenes[scenes.length - 1];
-    if (last && last.lateral === (lat || "keep_lane") && last.longitudinal === (lon || "cruising") && last.end_ns === nsStr(a)) { last.end_ns = nsStr(b); continue; }
-    scenes.push({ scene_id: "", start_ns: nsStr(a), end_ns: nsStr(b), lateral: lat || "keep_lane", longitudinal: lon || "cruising" });
-  }
-  scenes.forEach((s, k) => { s.scene_id = `scene_${String(k + 1).padStart(3, "0")}`; });
   const m = S.data.meta;
-  return { date: m.date, session: m.name, start_ns: String(m.start_ns), end_ns: String(m.end_ns),
-           labels_version: "gt", generator: { name: "jevsceneminer viewer", edited: new Date().toISOString() }, scenes };
+  return {date: m.date, session: m.name, start_ns: String(m.start_ns), end_ns: String(m.end_ns), labels_version: "gt",
+    generator: {name: "jevsceneminer viewer", edited: new Date().toISOString()},
+    scenes: S.gtScenes.map(s => ({start_ns: nsStr(s.start), end_ns: nsStr(s.end), driving_decision:s.lateral,
+      longitudinal_phases:s.phases.map(p=>({end_ns:nsStr(p.end),decision:p.decision}))}))};
 }
 $("save").onclick = async () => {
-  const r = await fetch(`/api/gt/${encodeURIComponent(S.sid)}`, { method: "PUT", body: JSON.stringify(gtDocument()) });
-  const j = await r.json();
-  if (r.ok) { S.dirty = false; status(`saved ${j.saved}`); } else status(`not saved: ${j.error}`);
+  if (S.saving || !S.data?.gt_writable) return;
+  const sid = S.sid, snapshot = JSON.stringify(S.gtScenes), draft = JSON.stringify(gtDocument());
+  S.saving = true; renderEditor();
+  try {
+    const r = await fetch(`/api/gt/${encodeURIComponent(sid)}`, {method: "PUT", body: draft});
+    const j = await r.json();
+    if (sid !== S.sid) return;
+    if (r.ok) {
+      if (snapshot === JSON.stringify(S.gtScenes)) { S.dirty = false; status("GT saved"); }
+      else status("Earlier edits saved; current changes are unsaved");
+    } else status(`Not saved: ${j.error}`);
+  } catch (error) { if (sid === S.sid) status(`Not saved: ${error.message}`); }
+  finally { S.saving = false; renderEditor(); }
 };
-addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
+addEventListener("beforeunload", e => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
 
 // ---------- maneuver list ----------
 function renderEvents() {
-  const filt = $("evFilter").value, lab = $("evLabel").value;
-  const [name, run] = mainRun();
-  const jev = maneuvers(spansOf(run, "lateral"));
-  const gt = maneuvers(S.gt.lat), rows = [];
-  const used = new Set();
-  for (const g of gt) {
-    const k = jev.findIndex((j, i) => !used.has(i) && j[2] === g[2] && overlap(j, g) >= 0.5);
-    if (k >= 0) used.add(k);
-    rows.push({ s: g, kind: k >= 0 ? "hit" : "miss", note: k >= 0 ? `${name} ${(jev[k][0] - g[0]) >= 0 ? "+" : ""}${(jev[k][0] - g[0]).toFixed(1)} s` : `${name} missed` });
-  }
-  jev.forEach((j, i) => { if (!used.has(i)) rows.push({ s: j, kind: gt.length ? "fa" : "", note: gt.length ? `${name} false alarm` : name }); });
-  rows.sort((a, b) => a.s[0] - b.s[0]);
-  const shown = rows.filter((r) => (filt === "all" || r.kind === filt) && (!lab || r.s[2] === lab));
-  $("events").innerHTML = `<table>${shown.map((r) => `<tr data-t="${r.s[0]}"><td>${fmt(r.s[0])}</td>
-    <td><span class="chip" style="background:${COLORS[r.s[2]]}">${r.s[2]}</span></td><td>${(r.s[1] - r.s[0]).toFixed(1)} s</td>
-    <td class="${r.kind}">${r.note}</td></tr>`).join("")}</table>` + (shown.length ? "" : `<p class="help">Nothing to show.</p>`);
-  for (const tr of $("events").querySelectorAll("tr")) tr.onclick = () => { const t = +tr.dataset.t; setTime(t); centerView(t); };
+  const label = $("evLabel").value;
+  const gt = S.gtScenes.map((s, index) => ({...s, source: "GT", index}));
+  const jev = scenesFrom(mainRun()[1]).map(s => ({...s, source: "Jev", index: -1}));
+  const rows = [...gt, ...jev].filter(s => s.lateral !== "keep_lane" && (!label || s.lateral === label)).sort((a, b) => a.start - b.start);
+  $("events").innerHTML = `<table>${rows.map((s, i) => `<tr data-index="${i}"><td>${fmt(s.start)}</td>
+    <td><span class="chip" style="background:${COLORS[s.lateral] || "#888"}">${pretty(s.lateral)}</span></td>
+    <td>${(s.end - s.start).toFixed(1)} s</td><td>${s.source}</td></tr>`).join("")}</table>` +
+    (rows.length ? "" : '<p class="help">No maneuvers labeled yet.</p>');
+  for (const tr of $("events").querySelectorAll("tr")) tr.onclick = () => {
+    const scene = rows[+tr.dataset.index]; setTime(scene.start); centerView(scene.start);
+    if (scene.source === "GT") selectGt(scene.index);
+  };
 }
-$("evFilter").onchange = renderEvents; $("evLabel").onchange = renderEvents;
+$("evLabel").onchange = renderEvents;
 
 // ---------- bird's-eye view ----------
 function drawBev() {
-  const cv = $("bev"), W = cv.clientWidth, H = W * 0.75, dpr = devicePixelRatio || 1;
+  const cv = $("bev"), W = cv.clientWidth, H = W*60/50, dpr = devicePixelRatio || 1;
   cv.width = W * dpr; cv.height = H * dpr;
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
   const css = getComputedStyle(document.documentElement);
   g.fillStyle = css.getPropertyValue("--panel"); g.fillRect(0, 0, W, H);
   const b = S.bev;
   if (!b || !b.available) return;
-  const k = nearest(b.track, S.t, (r) => r[0] / 1e9); if (k < 0) return;
-  const [, ex, ey, eyaw] = b.track[k], scale = W / 90;       // 90 m across
-  // heading-up: rotate the world by (pi/2 - yaw) around the ego, ego at 65% height
-  const c = Math.cos(Math.PI / 2 - eyaw), s = Math.sin(Math.PI / 2 - eyaw);
-  const P = (x, y) => { const dx = x - ex, dy = y - ey; return [W / 2 + (dx * c - dy * s) * scale, H * 0.65 - (dx * s + dy * c) * scale]; };
-  const reach = 80;
-  for (const lane of b.lanes) {
+  const shared = camPath?.available && camPath.world_sections && camPath.world_pose;
+  const captureTime = shared && camPath.timestamp_ns ? sec(camPath.timestamp_ns) : S.t;
+  const k = nearest(b.track, captureTime, (r) => r[0] / 1e9); if (k < 0) return;
+  const origin=b.origin || [0,0], cached=b.track[k];
+  const pose=shared ? camPath.world_pose : [cached[1]+origin[0],cached[2]+origin[1],cached[3]];
+  const ex=pose[0]-origin[0],ey=pose[1]-origin[1],eyaw=pose[2];
+  const sections=shared ? camPath.world_sections : b.track.filter(r=>r[0]/1e9>=captureTime && r[0]/1e9<=captureTime+10).map((r,i)=>{
+    const offset=.57425,dx=-Math.sin(r[3])*offset,dy=Math.cos(r[3])*offset;
+    return {time_s:r[0]/1e9-captureTime,left:[r[1]+origin[0]+dx,r[2]+origin[1]+dy],
+      right:[r[1]+origin[0]-dx,r[2]+origin[1]-dy],connect:i>0};
+  });
+  // Fixed50mwide/60mtall, ego95% down; display height two-thirds of previous.
+  const scale=W/50,anchor=.95;
+  cv.dataset.widthM="50";cv.dataset.heightM="60";cv.dataset.anchor=String(anchor);cv.dataset.scale=String(scale);
+  const worldP=(x,y)=>BevGeometry.screenPoint([x,y],pose,W,H,scale,anchor);
+  const P=(x,y)=>worldP(x+origin[0],y+origin[1]);
+  const reach = Math.max(80,W/scale,H/scale);
+  const displayedLanes = $("originalMap").checked && b.original_lanes ? b.original_lanes : b.lanes;
+  for (const lane of displayedLanes) {
     const xy = lane.xy;
     if (Math.abs(xy[0] - ex) > reach + 200 || Math.abs(xy[1] - ey) > reach + 200) continue;
     g.beginPath();
     for (let i = 0; i < xy.length; i += 2) { const [px, py] = P(xy[i], xy[i + 1]); i ? g.lineTo(px, py) : g.moveTo(px, py); }
     g.closePath(); g.fillStyle = css.getPropertyValue(lane.intersection ? "--lane-x" : "--lane"); g.fill();
-    g.strokeStyle = css.getPropertyValue("--lane-edge"); g.lineWidth = 0.6; g.stroke();
+    g.strokeStyle = css.getPropertyValue("--lane-edge"); g.lineWidth = W*.002; g.stroke();
   }
   const path = (from, to, color) => {
-    g.beginPath(); g.strokeStyle = color; g.lineWidth = 2;
+    g.beginPath(); g.strokeStyle = color; g.lineWidth = W*.0068;
     for (let i = Math.max(0, from); i < Math.min(b.track.length, to); i++) { const [px, py] = P(b.track[i][1], b.track[i][2]); i === Math.max(0, from) ? g.moveTo(px, py) : g.lineTo(px, py); }
     g.stroke();
   };
-  path(k - 50, k + 1, "rgba(120,128,145,.8)"); path(k, k + 100, "rgba(47,111,222,.55)");
+  path(k - 50, k + 1, "rgba(120,128,145,.8)");
+  // The camera and BEV use identical world cross sections and scene colors.
+  const pieces=CameraDecisions.ribbon(scenesFrom(S.data.runs.jev),captureTime,sections);
+  for(const piece of pieces) {
+    g.beginPath();[piece.from.left,piece.to.left,piece.to.right,piece.from.right].forEach((point,i)=>{
+      const [x,y]=worldP(...point);i?g.lineTo(x,y):g.moveTo(x,y);
+    });g.closePath();g.fillStyle=CAMERA_COLORS[piece.decision]||"#00ffff";g.globalAlpha=.7;g.fill();g.globalAlpha=1;
+  }
+  g.beginPath();
+  for(const section of sections) {
+    const [x,y]=worldP((section.left[0]+section.right[0])/2,(section.left[1]+section.right[1])/2);
+    section.connect?g.lineTo(x,y):g.moveTo(x,y);
+  }
+  g.strokeStyle="rgba(0,10,20,.95)";g.lineWidth=W*.0103;g.stroke();
+  for(const piece of pieces) {
+    g.beginPath();[piece.from,piece.to].forEach((section,i)=>{
+      const [x,y]=worldP((section.left[0]+section.right[0])/2,(section.left[1]+section.right[1])/2);
+      i?g.lineTo(x,y):g.moveTo(x,y);
+    });g.strokeStyle=CAMERA_COLORS[piece.decision]||"#00ffff";g.lineWidth=W*.0051;g.stroke();
+  }
   const box = (x, y, yaw, len, wid, color) => {
     const cy = Math.cos(yaw), sy = Math.sin(yaw), pts = [[len / 2, wid / 2], [len / 2, -wid / 2], [-len / 2, -wid / 2], [-len / 2, wid / 2]];
     g.beginPath(); pts.forEach(([u, v], i) => { const [px, py] = P(x + u * cy - v * sy, y + u * sy + v * cy); i ? g.lineTo(px, py) : g.moveTo(px, py); });
     g.closePath(); g.fillStyle = color; g.fill();
   };
-  const j = nearest(b.objects, S.t, (r) => r[0] / 1e9);
-  if (j >= 0 && Math.abs(b.objects[j][0] / 1e9 - S.t) < 1.0)
-    for (const [kind, x, y, yaw, v] of b.objects[j][1]) {
-      if (Math.hypot(x - ex, y - ey) > reach) continue;
-      const [len, wid] = KIND_SIZE[kind] || [1, 1];
-      box(x, y, yaw, len, wid, KIND_COLOR[kind] || "#8a90a0");
+  const j = nearest(b.objects, captureTime, (r) => r[0] / 1e9);
+  if (j >= 0 && Math.abs(b.objects[j][0] / 1e9 - captureTime) < 1.0)
+    for (const row of b.objects[j][1]) {
+      const kind=row[0], p=BevGeometry.objectFootprint(row,KIND_SIZE[kind] || [1,1]);
+      if (Math.hypot(p.x - ex, p.y - ey) > reach) continue;
+      box(p.x,p.y,p.yaw,p.length,p.width,KIND_COLOR[kind] || "#8a90a0");
     }
-  box(ex, ey, eyaw, 4.8, 2.0, "#111");
-  g.fillStyle = "#fff"; const [hx, hy] = P(ex + 1.8 * Math.cos(eyaw), ey + 1.8 * Math.sin(eyaw)); g.beginPath(); g.arc(hx, hy, 2.5, 0, 7); g.fill();
-  g.fillStyle = css.getPropertyValue("--muted"); g.font = "11px system-ui"; g.fillText("10 m", 10, H - 12);
-  g.fillRect(10, H - 8, 10 * scale, 2);
-  drawLabels(g);
+  const ego=BevGeometry.egoFootprint([0,ex,ey,eyaw],b.ego_vehicle);
+  box(ego.x,ego.y,ego.yaw,ego.length,ego.width,"#111");
+  g.fillStyle = "#fff"; const [hx, hy] = P(ex + 1.8 * Math.cos(eyaw), ey + 1.8 * Math.sin(eyaw)); g.beginPath(); g.arc(hx, hy, W*.0086, 0, 7); g.fill();
+  g.fillStyle = css.getPropertyValue("--muted"); g.font = `${W*.043}px system-ui`; g.fillText("10 m",W*.03,H-W*.04);
+  g.fillRect(W*.03,H-W*.027,10*scale,W*.0068);
 }
 
-// Labels at the cursor, drawn on top of the (cached, run-independent) bird's-eye data.
-function labelsAt(t) {
-  const at = (sp) => { const s = sp.find((q) => q[0] <= t && t < q[1]); return s ? s[2] : null; };
-  const rows = [];
-  if (S.gt.lat.length || S.gt.lon.length) rows.push(["GT", at(S.gt.lat), at(S.gt.lon), null]);
-  for (const n of S.runs) {
-    const run = S.data.runs[n];
-    if (!run) continue;
-    let prob = null;
-    if (n === "jev" && S.data.steps.length) {
-      const r = S.data.steps[nearest(S.data.steps, t, (q) => q.t_ns / 1e9)];
-      if (r.lateral) prob = [r.lateral, r.lateral_probs[r.lateral] || 0, r.longitudinal, (r.longitudinal_probs || {})[r.longitudinal]];
-    }
-    rows.push([n, at(spansOf(run, "lateral")), at(spansOf(run, "longitudinal")), prob]);
-  }
-  return rows;
-}
-function drawLabels(g) {
-  const rows = labelsAt(S.t);
-  if (!rows.length) return;
-  g.font = "12px system-ui"; g.textBaseline = "middle";
-  let y = 10;
-  for (const [who, lat, lon, prob] of rows) {
-    let x = 10;
-    g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(x - 4, y - 2, 330, 22);
-    g.fillStyle = "#fff"; g.fillText(who, x, y + 9); x += 44;
-    for (const [l, pr] of [[lat, prob && prob[0] === lat ? prob[1] : null], [lon, prob && prob[2] === lon ? prob[3] : null]]) {
-      if (!l) continue;
-      const text = pr != null ? `${l} ${pr.toFixed(2)}` : l, w = g.measureText(text).width + 10;
-      g.fillStyle = COLORS[l] || "#888"; g.fillRect(x, y, w, 18);
-      g.fillStyle = "#fff"; g.fillText(text, x + 5, y + 9); x += w + 6;
-    }
-    if (prob && prob[0] !== lat) {   // the scene label (after smoothing) differs from this step's answer
-      g.fillStyle = "#fff"; g.fillText(`(step: ${prob[0]} ${prob[1].toFixed(2)})`, x, y + 9);
-    }
-    y += 26;
-  }
-}
+$("originalMap").onchange = () => {
+  const b=S.bev;
+  if(b?.map_alignment)$("bevnote").textContent = $("originalMap").checked
+    ? "Original source map · local camera alignment disabled" : b.map_alignment.description;
+  drawBev();
+};
 
 // ---------- cursor, camera, script ----------
 function setTime(t) {
+  if (!S.data) return;
   S.t = Math.max(S.t0, Math.min(S.t1, t));
-  if (S.t < S.v0 || S.t > S.v1) centerView(S.t);
+  if (S.follow || S.t < S.v0 || S.t > S.v1) centerView(S.t);
+  const split = $("splitPhase"), selected = S.gtScenes[S.selected];
+  if (split) split.disabled = !S.data.gt_writable || !selected || S.t <= selected.start || S.t >= selected.end;
   drawAll(); loadScriptSoon();
 }
 function drawAll() {
+  if (!S.data) return;
   $("clock").textContent = `${fmt(S.t)} / ${fmt(S.t1)}  ·  ${new Date(S.t * 1000).toISOString().slice(11, 22)} UTC`;
   drawTimeline(); drawBev(); showCamera();
 }
-let camIdx = -1, camBusy = false;
-function showCamera() {
-  if (!S.camTimes || !S.camTimes.length) { $("cam").removeAttribute("src"); return; }
-  const i = nearest(S.camTimes, S.t);
-  if (i === camIdx || camBusy) return;
-  camIdx = i; camBusy = true;
-  $("cam").onload = $("cam").onerror = () => { camBusy = false; if (nearest(S.camTimes, S.t) !== camIdx) showCamera(); };
-  $("cam").src = `/camera/${encodeURIComponent(S.sid)}/${i}`;
+let camIdx = -1, camBusy = false, camPath = null, cameraGeneration = 0;
+let pathRequest = null;
+function clearCameraPath() {
+  camPath = null;
+  if (pathRequest) pathRequest.abort();
+  pathRequest = null;
+  drawCameraPath();
 }
+let cameraMock=null, cameraOverlayKey=null;
+function cameraResultsSource() {
+  if(!S.data)return {scenes:[],steps:[]};
+  if($("showMock").checked) {
+    if(!cameraMock)cameraMock=CameraDecisions.mock(S.t0,S.t1,LAT,LON.filter(l=>l!=="unknown"));
+    return cameraMock;
+  }
+  return {scenes:scenesFrom(S.data.runs.jev),steps:S.data.steps};
+}
+function cameraPanel(host,title,rows) {
+  const expanded=!!host.querySelector('details')?.open;
+  host.replaceChildren();
+  const heading=document.createElement('div');heading.className='prob-title';heading.textContent=title;host.append(heading);
+  const add=(parent,[label,p],i)=>{
+    const row=document.createElement('div');row.className='prob-row'+(i===0?' winner':'');
+    row.style.setProperty('--decision-color',CAMERA_COLORS[label]||'#fff');
+    const name=document.createElement('span'),value=document.createElement('span');name.textContent=label;name.title=label;
+    value.textContent=(100*p).toFixed(1)+'%';row.append(name,value);parent.append(row);
+  };
+  rows.slice(0,3).forEach((r,i)=>add(host,r,i));
+  if(!rows.length)host.append(document.createTextNode('No raw result'));
+  if(rows.length>3) {
+    const more=document.createElement('details'),summary=document.createElement('summary');
+    summary.textContent=`${rows.length-3} more probabilities`;more.append(summary);more.open=expanded;
+    rows.slice(3).forEach((r,i)=>add(more,r,i+3));host.append(more);
+  }
+
+}
+function drawCameraResults() {
+  const mock=$("showMock").checked,source=cameraResultsSource();
+  const t=camIdx>=0 ? S.camTimes[camIdx] : S.t;
+  const key=`${S.sid}:${mock}:${Math.floor(t-S.t0)}:${S.playing?"playing":camIdx}`;
+  if(key===cameraOverlayKey)return;cameraOverlayKey=key;
+  const v=CameraDecisions.view(source.scenes,source.steps,t);
+  $("cameraResults").hidden=!S.data || (!mock && !v.rawLateral.length && !v.rawLongitudinal.length && !v.lateral);
+  $("cameraMockBadge").hidden=!mock;
+  cameraPanel($("cameraLateral"),'Lateral Decision',v.rawLateral);
+  cameraPanel($("cameraLongitudinal"),'Longitudinal Decision',v.rawLongitudinal);
+  const label=$("cameraDecision");label.replaceChildren();
+  if(v.lateral) {
+    const lateral=document.createElement('span'),longitudinal=document.createElement('span');
+    lateral.textContent=v.lateral+' ';longitudinal.className='longitudinal';
+    longitudinal.textContent=`(${v.longitudinal||'unknown'})`;label.append(lateral,longitudinal);
+  } else label.textContent='No merged decision';
+  label.style.setProperty('--decision-color',CAMERA_COLORS[v.lateral]||'#fff');
+}
+$("showMock").onchange=()=>{
+  const url=new URL(location.href);$("showMock").checked?url.searchParams.set('mock','1'):url.searchParams.delete('mock');
+  history.replaceState(null,'',url);cameraOverlayKey=null;drawCameraPath();
+};
+function drawCameraPath() {
+  drawCameraResults();
+  const canvas = $("camPath"), image = $("cam");
+  const width = image.clientWidth, height = image.clientHeight, ratio = devicePixelRatio || 1;
+  canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
+  const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio);
+  if (!$("showPath").checked || !camPath?.available || !width || !height) return;
+  const scale = Math.min(width / camPath.width, height / camPath.height);
+  const x0 = (width - camPath.width * scale) / 2, y0 = (height - camPath.height * scale) / 2;
+  const xy = point => [x0 + point[0] * scale, y0 + point[1] * scale];
+  ctx.save(); ctx.beginPath(); ctx.rect(x0,y0,camPath.width*scale,camPath.height*scale); ctx.clip();
+  // Protect only the smaller text bounds; the rest of the lower camera stays available.
+  if(!$("cameraResults").hidden) {
+    const box=$("cameraDecision").getBoundingClientRect(),frame=image.getBoundingClientRect(),gap=width*.002;
+    ctx.beginPath();ctx.rect(0,0,width,height);
+    ctx.rect(box.left-frame.left-gap,box.top-frame.top-gap,box.width+2*gap,box.height+2*gap);
+    ctx.clip('evenodd');
+  }
+  const captureTime=camPath.timestamp_ns ? sec(camPath.timestamp_ns) : S.camTimes[camIdx];
+  const pieces=CameraDecisions.ribbon(cameraResultsSource().scenes,captureTime,camPath.sections);
+  for(const piece of pieces) {
+    const color=CAMERA_COLORS[piece.decision]||'#00ffff';
+    ctx.beginPath();[piece.from.left,piece.to.left,piece.to.right,piece.from.right].forEach((point,j)=>{
+      const [x,y]=xy(point);j?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    });ctx.closePath();ctx.fillStyle=color;ctx.globalAlpha=.5;ctx.fill();ctx.globalAlpha=1;
+  }
+  // Stroke whole connected runs after filling all quads, keeping black end caps from
+  // puncturing the colored edges at every trajectory sample.
+  for(const edge of ['left','right']) {
+    const groups=[];
+    for(const piece of pieces) {
+      const last=groups.at(-1),color=CAMERA_COLORS[piece.decision]||'#00ffff';
+      const samePoint=last && last.points.at(-1).every((v,i)=>Math.abs(v-piece.from[edge][i])<1e-6);
+      if(last && last.color===color && samePoint)last.points.push(piece.to[edge]);
+      else groups.push({color,points:[piece.from[edge],piece.to[edge]]});
+    }
+    const trace=points=>points.forEach((p,i)=>{const [x,y]=xy(p);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+    ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.beginPath();groups.forEach(g=>trace(g.points));
+    ctx.strokeStyle='rgba(0,10,20,.95)';ctx.lineWidth=7;ctx.stroke();
+    for(const g of groups){ctx.beginPath();trace(g.points);ctx.strokeStyle=g.color;ctx.lineWidth=4;ctx.stroke();}
+  }
+  ctx.restore();
+}
+async function loadCameraFrame(sid,index,generation) {
+  const request=new AbortController(); pathRequest=request;
+  const image=new Image(); image.id="cam"; image.alt="front camera frame";
+  const frame=new Promise((resolve,reject) => {
+    image.onload=()=>resolve(image);
+    image.onerror=()=>reject(new Error("Camera image unavailable for this frame."));
+    image.src=`/camera/${encodeURIComponent(sid)}/${index}`;
+  });
+  const projection=fetch(`/api/camera-path/${encodeURIComponent(sid)}/${index}`,{signal:request.signal})
+    .then(response => {if(!response.ok)throw new Error("projection unavailable");return response.json();})
+    .catch(error => {
+      if(error.name==="AbortError")throw error;
+      return {available:false,reason:"Future path unavailable for this frame."};
+    });
+  try {
+    const [ready,path]=await Promise.all([frame,projection]);
+    if(sid!==S.sid || generation!==cameraGeneration) return;
+    // Swap a decoded image and its own projection in the same browser update.
+    ready.dataset.frameIndex=String(index);
+    $("cam").replaceWith(ready);
+    camIdx=index;camPath=path;drawCameraPath();drawBev();
+    $("camnote").textContent=path.available ? `Recorded future · ${path.horizon_s.toFixed(1)} s · ribbon width ${path.width_m.toFixed(2)} m` : path.reason;
+  } catch(error) {
+    if(error.name!=="AbortError" && sid===S.sid && generation===cameraGeneration) {
+      camIdx=index;clearCameraPath();$("cam").removeAttribute("src");
+      $("camnote").textContent=error.message;
+    }
+  } finally {
+    image.onload=image.onerror=null;
+    if(pathRequest===request)pathRequest=null;
+    if(sid===S.sid && generation===cameraGeneration) {
+      camBusy=false;
+      if(nearest(S.camTimes,S.t)!==camIdx)showCamera();
+    }
+  }
+}
+function showCamera() {
+  if(!S.camTimes || !S.camTimes.length) {
+    cameraGeneration++;camBusy=false;clearCameraPath();$("cam").removeAttribute("src");return;
+  }
+  const index=nearest(S.camTimes,S.t);
+  if(index===camIdx || camBusy) {drawCameraPath();return;}
+  camBusy=true;
+  // Keep the previous matched image/ribbon visible while the next pair loads.
+  loadCameraFrame(S.sid,index,++cameraGeneration);
+}
+$("showPath").onchange=drawCameraPath;
 let scriptTimer = null, scriptFor = null;
 function loadScriptSoon() { clearTimeout(scriptTimer); scriptTimer = setTimeout(loadScript, S.playing ? 400 : 120); }
 async function loadScript() {
+  if (!S.data) return;
+  const generation = sessionGeneration;
   const steps = S.data.steps; if (!steps.length) { $("script").textContent = ""; return; }
   const k = nearest(steps, S.t, (r) => r.t_ns / 1e9), t = steps[k].t_ns;
   if (scriptFor === t) return; scriptFor = t;
-  const text = await (await fetch(`/api/script/${encodeURIComponent(S.sid)}/${Math.round(t)}`)).text();
+  const sid = S.sid;
+  const text = await (await fetch(`/api/script/${encodeURIComponent(sid)}/${Math.round(t)}`)).text();
+  if (sid !== S.sid || scriptFor !== t || generation !== sessionGeneration) return;
   const r = steps[k];
   const ans = r.lateral ? `\n\nJev: ${r.lateral} (${(r.lateral_probs[r.lateral] || 0).toFixed(2)})` +
     (r.longitudinal ? `, ${r.longitudinal} (${(r.longitudinal_probs[r.longitudinal] || 0).toFixed(2)})` : "") : "\n\n(no Jev answer yet: dry run)";
@@ -498,14 +873,16 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 function togglePlay() {
+  if (!S.data) return;
   S.playing = !S.playing; lastFrame = 0;
   $("play").textContent = S.playing ? "❚❚ Pause" : "▶ Play"; $("play").classList.toggle("on", S.playing);
+  drawCameraPath();
   if (S.playing) requestAnimationFrame(tick);
 }
 $("play").onclick = togglePlay;
 $("session").onchange = () => load($("session").value);
 addEventListener("keydown", (ev) => {
-  if (ev.target.tagName === "SELECT") return;
+  if (["SELECT", "INPUT", "TEXTAREA", "BUTTON"].includes(ev.target.tagName) || ev.target.isContentEditable) return;
   if (ev.key === " ") { ev.preventDefault(); togglePlay(); }
   else if (ev.key === "ArrowRight") setTime(S.t + (ev.shiftKey ? 5 : 0.5));
   else if (ev.key === "ArrowLeft") setTime(S.t - (ev.shiftKey ? 5 : 0.5));
