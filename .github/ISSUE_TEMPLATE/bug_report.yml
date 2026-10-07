@@ -1,0 +1,23 @@
+name: Bug report
+description: Report a reproducible pipeline or viewer issue
+title: "[Bug] "
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and observed behavior
+      description: Include the scene/time and a small reproducible example.
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Run configuration
+      description: Commit/version, Python/platform, source/map version, model/questions, schema, context and both cadences, merging flags.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Relevant evidence and checks
+      description: Prefer synthetic fixtures or allowed redacted script excerpts. Identify manual annotations and display corrections. Do not include credentials or private recordings.
