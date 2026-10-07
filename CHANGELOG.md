@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add an API-free, hash-locked saved-result benchmark with complete coverage checks and a clearly synthetic boundary example.
+- Keep time-agreement samples inside their assessed interval; identical 0.55 s/1.55 s intervals no longer incur a false missing-label penalty at the end.
+- Compare maneuver overlap at nanosecond precision so an exact 0.5 s match is accepted while a 1 ns shorter overlap is rejected.
 - Organize implementation under `src/jevsceneminer` with source, evidence, inference, scene and viewer groups; preserve former public imports and CLI behavior.
 - Refresh the README with a real Boston highlight preview and an inline click-to-play full video.
 

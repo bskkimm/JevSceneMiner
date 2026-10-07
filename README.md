@@ -107,7 +107,7 @@ See [usage](docs/usage.md) for rosbag inputs, options, outputs and remote viewin
 | [Usage](docs/usage.md) | Source setup, configuration, outputs and viewer |
 | [Sample and scene schema](docs/schema.md) | Context, lane/body evidence and consecutive phases |
 | [Evidence review](docs/review.md) | Opt-in annotations, missing actor history and selected reruns |
-| [Evaluation](docs/evaluation.md) | Independent GT, metrics and limitations |
+| [Evaluation](docs/evaluation.md) | Offline benchmark, independent GT and limitations |
 | [Repository layout](docs/architecture.md) | Source groups and import compatibility |
 | [Contributing](CONTRIBUTING.md) | Development checks and contribution contracts |
 

@@ -1,0 +1,37 @@
+{
+  "scenes": [
+    {
+      "start_ns": "1767000000000000000",
+      "end_ns": "1767000003000000000",
+      "driving_decision": "keep_lane",
+      "longitudinal_phases": [
+        {
+          "end_ns": "1767000003000000000",
+          "decision": "cruising"
+        }
+      ]
+    },
+    {
+      "start_ns": "1767000003000000000",
+      "end_ns": "1767000007000000000",
+      "driving_decision": "lane_change_right",
+      "longitudinal_phases": [
+        {
+          "end_ns": "1767000007000000000",
+          "decision": "cruising"
+        }
+      ]
+    },
+    {
+      "start_ns": "1767000007000000000",
+      "end_ns": "1767000012000000000",
+      "driving_decision": "keep_lane",
+      "longitudinal_phases": [
+        {
+          "end_ns": "1767000012000000000",
+          "decision": "cruising"
+        }
+      ]
+    }
+  ]
+}

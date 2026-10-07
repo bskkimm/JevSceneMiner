@@ -16,6 +16,7 @@ JevSceneMiner/
 │   └── cli.py
 ├── tests/              Python and browser-logic contracts
 ├── examples/           Original synthetic pipeline and sample artifacts
+├── benchmarks/         Small synthetic, hash-locked scoring contract
 ├── docs/               Usage, schema, review, evaluation and demo notes
 │   └── assets/         Small documentation previews
 ├── tools/              Packaging and publication checks

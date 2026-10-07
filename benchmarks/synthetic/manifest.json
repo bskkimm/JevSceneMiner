@@ -1,0 +1,37 @@
+{
+  "schema_version": "jsm-benchmark-1",
+  "name": "Synthetic boundary contract",
+  "kind": "synthetic",
+  "provenance": "Hand-written synthetic intervals; no real recording, model or Jev API was used.",
+  "run_configuration": {
+    "exact": {
+      "generator": "hand-written intervals",
+      "start_delay_s": 0
+    },
+    "delayed": {
+      "generator": "hand-written intervals",
+      "start_delay_s": 1
+    }
+  },
+  "sessions": [
+    {
+      "id": "synthetic-lane-change",
+      "start_ns": "1767000000000000000",
+      "end_ns": "1767000012000000000",
+      "gt": {
+        "path": "truth.json",
+        "sha256": "7441c91c116ca0bccda0df2f58c23eae62a20ec03f073c7de4a536ff8f9edce4"
+      },
+      "runs": {
+        "exact": {
+          "path": "exact.json",
+          "sha256": "7441c91c116ca0bccda0df2f58c23eae62a20ec03f073c7de4a536ff8f9edce4"
+        },
+        "delayed": {
+          "path": "delayed.json",
+          "sha256": "7889b8e448877642681147d71cf466f50b6a2fc828b60c93e87d110bf0d3e877"
+        }
+      }
+    }
+  ]
+}
