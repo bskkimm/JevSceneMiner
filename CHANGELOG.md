@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Organize implementation under `src/jevsceneminer` with source, evidence, inference, scene and viewer groups; preserve former public imports and CLI behavior.
+- Refresh the README with a real Boston highlight preview and an inline click-to-play full video.
+
 ## 0.2.0 — 2026-10-07
 
 - Publish shared rosbag/nuPlan evidence with explicit context intervals, mapped intersection facts, ego-footprint shares and source-ID object histories.

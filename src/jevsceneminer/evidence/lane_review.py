@@ -8,8 +8,8 @@ replaced rather than presented alongside contradictory native geometry.
 from copy import deepcopy
 import re
 
-from .compact import effective_facts, reviewed_state, _interval_touches_review, _lane_event
-from .script import _interaction_context
+from jevsceneminer.evidence.compact import effective_facts, reviewed_state, _interval_touches_review, _lane_event
+from jevsceneminer.evidence.script import _interaction_context
 
 
 def apply_lane_review(row, review):

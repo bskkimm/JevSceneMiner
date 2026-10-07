@@ -20,6 +20,10 @@ Disabling automatic pytest plugin loading avoids unrelated ROS workspace plugins
 Tests and synthetic demos do not require an API key and must not make paid API calls.
 CI also installs a wheel into a separate environment and checks packaged labels, preset and viewer files.
 
+Implementation lives in `src/jevsceneminer/`; use its grouped modules for new code.
+Keep legacy import bridges intact and verify wheel resources after layout changes.
+See [repository layout](docs/architecture.md).
+
 ## Contracts to preserve
 
 - Missing map matches, dimensions, signals or actor identities remain unknown.

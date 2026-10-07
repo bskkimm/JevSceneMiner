@@ -1,60 +1,45 @@
 # Repository layout
 
-The tracked tree is small and separates implementation, tests, examples and documentation.
-Local datasets, run outputs, API keys and internal notes are ignored; they should stay outside the publication tree.
-
-## Current tree
-
-```text
-JevSceneMiner/
-├── jevsceneminer/       Python package: adapters, evidence, inference, merging
-│   ├── presets/        Explicit run configurations
-│   └── viewer/         Browser UI and geometry helpers
-├── tests/              Python and browser-logic tests
-├── examples/           Original synthetic pipeline and sample artifacts
-├── docs/               Usage, schema, review, evaluation and demo notes
-│   └── assets/         Small documentation illustrations
-├── tools/              Packaging and publication checks
-├── .github/            CI and issue/PR templates
-├── labels.yaml         Default Jev questions
-├── labels.compact.yaml Experimental compact-input questions
-├── pyproject.toml
-└── uv.lock
-```
-
-The root is already reasonably clean. The main maintainability issue is the flat Python package: source adapters, evidence calculations and display geometry are intermixed.
-There is no need to add a directory for every file or change working imports just for appearance.
-
-## Proposed next cleanup
-
-This is a proposal, not the tree implemented by the README update:
+Implementation lives under `src/`, separate from tests, examples and documentation.
+Local datasets, outputs, API keys and internal notes remain ignored.
 
 ```text
 JevSceneMiner/
 ├── src/jevsceneminer/
-│   ├── inputs/         Rosbag and nuPlan adapters
-│   ├── evidence/       Motion, lane/body and object evidence; script rendering
-│   ├── inference/      Jev client, cache and run orchestration
-│   ├── scenes/         Merging, phases and evaluation
-│   ├── viewer/         Server, camera projection and browser assets
-│   ├── presets/
+│   ├── inputs/         Rosbag, nuPlan and native-map adapters
+│   ├── evidence/       Motion, lane/body and object evidence; input scripts
+│   ├── inference/      Jev questions, client and answer cache
+│   ├── scenes/         Lateral merging, speed phases, rules and evaluation
+│   ├── viewer/         Server and camera/height projection
+│   │   └── static/     HTML and browser geometry/editor helpers
+│   ├── presets/        Explicit run configurations
 │   └── cli.py
-├── tests/              Mirrors the stable component boundaries
-├── examples/
-├── docs/
-├── tools/
-└── .github/
+├── tests/              Python and browser-logic contracts
+├── examples/           Original synthetic pipeline and sample artifacts
+├── docs/               Usage, schema, review, evaluation and demo notes
+│   └── assets/         Small documentation previews
+├── tools/              Packaging and publication checks
+├── .github/            CI and issue/PR templates
+├── labels.yaml
+├── labels.compact.yaml
+├── pyproject.toml
+└── uv.lock
 ```
 
-Do this as one separate refactoring PR after freezing module boundaries.
-Preserve the CLI, sample/scene schemas and packaged resources; keep compatibility wrappers for existing import paths where needed.
-Verify both source adapters and a clean wheel installation before merging.
+## Import compatibility
 
-## Small, useful commits
+Use the grouped modules for new implementation, such as `jevsceneminer.inputs.nuplan` or `jevsceneminer.evidence.script`.
+The former top-level imports remain small compatibility bridges to the same module objects.
+There are no duplicate implementations: source types and patches retain their identity across both import paths.
+`jevsceneminer.scenes` keeps its original merge API, and `jevsceneminer.viewer` keeps its server API, including explicit `PAGE` overrides.
+The older `python -m jevsceneminer.compact` entry point remains usable.
 
-1. **Presentation:** concise README, a real demo and linked detailed guides.
-2. **Documentation assets:** keep large MP4s as GitHub attachments rather than Git blobs; retain only small assets with a clear use.
-3. **Package organization:** apply the proposed module grouping with import and packaging checks.
-4. **Evaluation:** add a reproducible held-out benchmark when independent GT and distributable evidence are available.
+The CLI, data schemas, exact questions, cache keys and merge behavior are unchanged by this move.
+Labels, presets and browser assets are checked after installing a wheel outside the source checkout.
+Both synthetic adapters are also compared before and after migration.
 
-The first two belong to this documentation update. The package move and benchmark are future work.
+## Keep the tree small
+
+Keep large MP4s as GitHub attachments, raw data and derived runs outside Git, and only useful documentation assets under `docs/assets/`.
+The short README preview is a single optimized GIF; the full video is hosted separately.
+Avoid adding folders for speculative features. Evaluation should use saved results and independent, locked GT rather than a curated showcase.

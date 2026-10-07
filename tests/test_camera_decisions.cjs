@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const D=require('../jevsceneminer/viewer/camera_decisions.js');
+const D=require('../src/jevsceneminer/viewer/static/camera_decisions.js');
 const scenes=[{start:100,end:110,lateral:'turn_right',phases:[{end:104,decision:'decelerating'},{end:110,decision:'accelerating'}]},
  {start:110,end:120,lateral:'keep_lane',phases:[{end:120,decision:'cruising'}]}];
 const steps=[{t_ns:102e9,lateral_probs:{keep_lane:.8,turn_right:.2},longitudinal_probs:{accelerating:.1,decelerating:.9}},

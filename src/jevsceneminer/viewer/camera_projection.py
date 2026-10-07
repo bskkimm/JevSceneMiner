@@ -156,7 +156,7 @@ class CameraPath:
                         landmark_rows.setdefault(row[0],[]).append(tuple(row)[1:])
         self.poses=np.array([[t/1e6,*p] for t,p in sorted(all_poses.items())],dtype=float)
         if align_height:
-            from .temporal_height import TemporalHeightReference
+            from jevsceneminer.viewer.temporal_height import TemporalHeightReference
             self.height_reference=TemporalHeightReference(
                 {key:np.asarray(sorted(rows),dtype=float) for key,rows in landmark_rows.items()},
                 origin=self.poses[0,1:3],time_bounds=(self.poses[0,0],self.poses[-1,0]))

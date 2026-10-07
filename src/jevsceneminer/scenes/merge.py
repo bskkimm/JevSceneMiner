@@ -13,7 +13,7 @@ from dataclasses import dataclass, replace
 import math
 from pathlib import Path
 
-from .jev import Answer
+from jevsceneminer.inference.jev import Answer
 
 
 @dataclass(frozen=True)

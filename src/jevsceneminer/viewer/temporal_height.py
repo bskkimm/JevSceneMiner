@@ -6,7 +6,7 @@ Weak spatial evidence blends toward observed translation rather than deleting
 ribbon samples or switching independently fitted references between images.
 """
 import numpy as np
-from .height_reference import HeightReference
+from jevsceneminer.viewer.height_reference import HeightReference
 
 
 class TemporalHeightReference:

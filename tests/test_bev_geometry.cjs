@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const B=require('../jevsceneminer/viewer/bev_geometry.js');
+const B=require('../src/jevsceneminer/viewer/static/bev_geometry.js');
 test('native car footprint uses the recorded dimensions',()=>{
  assert.deepEqual(B.objectFootprint(['car',2,3,0,0,5.95,2.16],[4.6,1.9]),{x:2,y:3,yaw:0,length:5.95,width:2.16});
  assert.equal(B.objectFootprint(['car',2,3,0,0],[4.6,1.9]).length,4.6);

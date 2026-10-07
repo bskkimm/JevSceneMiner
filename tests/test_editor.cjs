@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const E = require('../jevsceneminer/viewer/editor.js');
+const E = require('../src/jevsceneminer/viewer/static/editor.js');
 const bounds = [0, 20];
 const base = () => [
   {start: 0, end: 5, lateral: 'keep_lane', longitudinal: 'cruising'},

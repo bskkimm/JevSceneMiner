@@ -6,8 +6,8 @@ import math
 import numpy as np
 from shapely.geometry import LineString, Point, Polygon
 
-from .facts import DT_S, LANE_EVERY
-from .lane_evidence import rectangle
+from jevsceneminer.evidence.facts import DT_S, LANE_EVERY
+from jevsceneminer.evidence.lane_evidence import rectangle
 
 BRAKING_ACCEL_MS2 = -0.3
 LANE_CORRIDOR_HALF_WIDTH_M = 1.15  # explicit fixed-width proxy, not a mapped lane boundary
@@ -140,7 +140,7 @@ def key_observations(observations, event_times=(), use_map=True):
 
 def object_tracks(tl, lanemap, i_now, lo, hi, max_tracks=8, radius_m=30,
                   geometry=None, selection_info=None, map_free_tracks=None):
-    from .lane_evidence import LaneEvidence
+    from jevsceneminer.evidence.lane_evidence import LaneEvidence
     geometry=geometry or LaneEvidence(tl,lanemap,lo,hi,i_now)
     groups,seen,missing_ids={},set(),False
     corridors={}

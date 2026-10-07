@@ -6,7 +6,7 @@ import re
 
 import numpy as np
 
-from .lane_evidence import rectangle
+from jevsceneminer.evidence.lane_evidence import rectangle
 
 def derive_observations(actors, ego, connector, now_ns):
     """Actors: [us,x,y,yaw,vx,vy,length,width]; ego: [us,x,y,yaw]."""

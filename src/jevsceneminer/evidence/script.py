@@ -12,11 +12,11 @@ from string import ascii_uppercase
 
 import numpy as np
 
-from .bag import INDICATOR_LEFT, INDICATOR_RIGHT
-from .facts import DT_S, LANE_EVERY, Timeline
-from .lanes import LaneMap, wrap
-from . import sample_context as context
-from .lane_evidence import LaneEvidence
+from jevsceneminer.inputs.bag import INDICATOR_LEFT, INDICATOR_RIGHT
+from jevsceneminer.evidence.facts import DT_S, LANE_EVERY, Timeline
+from jevsceneminer.evidence.lanes import LaneMap, wrap
+from jevsceneminer.evidence import sample_context as context
+from jevsceneminer.evidence.lane_evidence import LaneEvidence
 
 SAMPLE_SCHEMA_VERSION = "jsm-sample-1.1"
 
