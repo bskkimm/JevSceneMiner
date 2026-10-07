@@ -14,18 +14,18 @@ from pathlib import Path
 import yaml
 
 from . import __version__
-from .bag import INDICATOR_LEFT, INDICATOR_RIGHT, BagError, read_session
-from .evaluate import score
-from .facts import DT_S, build_timeline
-from .jev import Answer, AnswerCache, JevClassifier, JevError, cache_key, load_labels
-from .lanes import LaneMap
-from .nuplan import read_nuplan
-from .nuplan_map import TRAFFIC_SIDE, find_map, load_nuplan_map
-from .rules import rule_scenes
-from .scenes import Step, session_document, stitch, write_scenes, extend_maneuver_ends
-from .script import SAMPLE_SCHEMA_VERSION, TABLE_STEP_S, render_sample, strip_map
+from jevsceneminer.inputs.bag import INDICATOR_LEFT, INDICATOR_RIGHT, BagError, read_session
+from jevsceneminer.scenes.evaluate import score
+from jevsceneminer.evidence.facts import DT_S, build_timeline
+from jevsceneminer.inference.jev import Answer, AnswerCache, JevClassifier, JevError, cache_key, load_labels
+from jevsceneminer.evidence.lanes import LaneMap
+from jevsceneminer.inputs.nuplan import read_nuplan
+from jevsceneminer.inputs.nuplan_map import TRAFFIC_SIDE, find_map, load_nuplan_map
+from jevsceneminer.scenes.rules import rule_scenes
+from jevsceneminer.scenes.merge import Step, session_document, stitch, write_scenes, extend_maneuver_ends
+from jevsceneminer.evidence.script import SAMPLE_SCHEMA_VERSION, TABLE_STEP_S, render_sample, strip_map
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_LABELS = REPO_ROOT / 'labels.yaml'
 if not DEFAULT_LABELS.is_file():
     DEFAULT_LABELS = Path(__file__).resolve().parent / 'labels.yaml'
@@ -340,7 +340,7 @@ def cmd_score(args) -> int:
 
 
 def cmd_view(args) -> int:
-    from .viewer import serve
+    from jevsceneminer.viewer.server import serve
 
     out = Path(args.out)
     runs = {}

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .bag import BagError, DetectedObject, EgoTrack, Session
+from jevsceneminer.inputs.bag import BagError, DetectedObject, EgoTrack, Session
 
 OBJECT_KINDS = {"vehicle": "car", "bicycle": "bicycle", "pedestrian": "pedestrian", "traffic_cone": "traffic cone",
                 "barrier": "barrier", "czone_sign": "construction sign", "generic_object": "object"}

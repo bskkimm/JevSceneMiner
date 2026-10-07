@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
 
-const html=fs.readFileSync(path.join(__dirname,'../jevsceneminer/viewer/index.html'),'utf8');
+const html=fs.readFileSync(path.join(__dirname,'../src/jevsceneminer/viewer/static/index.html'),'utf8');
 const main=html.match(/^const mainRun = [\s\S]*?(?=^const pretty)/m)[0];
 function functionSource(name,async=false) {
   const expression=new RegExp('^'+(async?'async ':'')+'function '+name+'\\([^]*?^}\\n','m');

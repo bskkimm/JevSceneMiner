@@ -24,7 +24,7 @@ import pyproj
 import shapely
 from shapely import wkb
 
-from .lanes import Lane, LaneMap, wrap
+from jevsceneminer.evidence.lanes import Lane, LaneMap, wrap
 
 CROSSABLE_BOUNDARY_TYPES = {0}
 TRAFFIC_LIGHT_INTERSECTION_TYPE = 1   # every connector with light states in the logs is in one

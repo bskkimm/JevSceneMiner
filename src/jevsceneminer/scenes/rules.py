@@ -19,10 +19,10 @@ import math
 
 import numpy as np
 
-from .facts import DT_S, LANE_EVERY, Timeline
-from .jev import Answer
-from .lanes import LaneMap
-from .scenes import Scene, Step, stitch
+from jevsceneminer.evidence.facts import DT_S, LANE_EVERY, Timeline
+from jevsceneminer.inference.jev import Answer
+from jevsceneminer.evidence.lanes import LaneMap
+from jevsceneminer.scenes.merge import Scene, Step, stitch
 
 TURN_LEAD_M = 30.0
 TURN_MEASURE_M = 20.0          # heading change is measured this far before and after the lane

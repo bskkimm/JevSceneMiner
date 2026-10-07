@@ -11,8 +11,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .bag import INDICATOR_OFF, DetectedObject, Session
-from .lanes import LaneMap, Projection
+from jevsceneminer.inputs.bag import INDICATOR_OFF, DetectedObject, Session
+from jevsceneminer.evidence.lanes import LaneMap, Projection
 
 DT_S = 0.02            # ego signals are resampled to 50 Hz
 LANE_EVERY = 5         # lanes are matched every 5th sample (10 Hz)

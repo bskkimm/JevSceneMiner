@@ -2,7 +2,7 @@
 
     jevsceneminer view out/run1 --sensor-root ~/dataset/nuplan/sensor_blobs --gt gt/ --port 8650
 
-The page (viewer/index.html) shows, per session: the front camera, a bird's-eye view of
+The page (viewer/static/index.html) shows, per session: the front camera, a bird's-eye view of
 the map with the ego and nearby objects, a compact Jev/GT timeline, and the script at
 NOW. Extra signal tracks are available under Details. The GT editor supports labels,
 boundaries, add/split/merge/delete and Undo; Save writes ``<gt>/<session>.json``
@@ -32,9 +32,9 @@ from urllib.parse import unquote
 import numpy as np
 import shapely
 
-from .lanes import CACHE_DIR
+from jevsceneminer.evidence.lanes import CACHE_DIR
 
-PAGE = Path(__file__).resolve().parent / "viewer" / "index.html"
+PAGE = Path(__file__).resolve().parent / "static" / "index.html"
 BEV_CACHE = CACHE_DIR / "bev"
 BEV_FORMAT = 3
 MAP_MARGIN_M = 60.0
@@ -105,7 +105,7 @@ class Site:
         meta = _read_json(self.out / "meta" / f"{sid}.json", {})
         if not 0 <= index < len(frames) or meta.get("topics", {}).get("source") != "nuplan":
             return {"available": False, "reason": "Recorded camera projection requires nuPlan calibration"}
-        from .camera_projection import CameraPath
+        from jevsceneminer.viewer.camera_projection import CameraPath
         with self._camera_lock:
             if sid not in self._camera_paths:
                 self._camera_paths[sid] = CameraPath(meta)
@@ -158,8 +158,8 @@ class Site:
 
     @staticmethod
     def _build_bev(meta: dict) -> dict:
-        from .nuplan import read_nuplan
-        from .nuplan_map import load_nuplan_map
+        from jevsceneminer.inputs.nuplan import read_nuplan
+        from jevsceneminer.inputs.nuplan_map import load_nuplan_map
 
         log = read_nuplan(meta["sources"], object_interval_s=0.2)
         s = log.session
@@ -219,7 +219,7 @@ class Site:
     def save_gt(self, sid: str, doc: dict) -> Path:
         if not self.gt_dir:
             raise PermissionError("start the viewer with --gt to save GT")
-        from .scenes import validate_scene_document
+        from jevsceneminer.scenes.merge import validate_scene_document
         validate_scene_document(doc)
         self.gt_dir.mkdir(parents=True, exist_ok=True)
         path = self.gt_dir / f"{sid}.json"

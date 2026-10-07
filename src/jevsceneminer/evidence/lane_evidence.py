@@ -10,7 +10,7 @@ from shapely.geometry import LineString, Point, Polygon
 from shapely.ops import unary_union
 from shapely import STRtree
 
-from .facts import DT_S, LANE_EVERY
+from jevsceneminer.evidence.facts import DT_S, LANE_EVERY
 
 DEPARTURE_FRACTION = .01  # numerical reporting tolerance, never a label rule
 
