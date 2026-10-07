@@ -63,6 +63,9 @@ class DetectedObject:
     yaw: float  # rad
     speed: float  # m/s
     existence: float
+    track_id: str | None = None
+    length_m: float | None = None
+    width_m: float | None = None
 
 
 @dataclass
@@ -78,6 +81,8 @@ class Session:
     indicator: np.ndarray  # INDICATOR_OFF / INDICATOR_LEFT / INDICATOR_RIGHT
     topics: dict | None = None  # role -> topic actually used
     has_indicator: bool = True  # False when the log does not record the turn indicator
+
+    ego_geometry: dict | None = None  # dimensions + pose-to-body-center offset; unknown unless supplied
 
     @property
     def start_ns(self) -> int:
@@ -121,13 +126,18 @@ def _objects(msg) -> list[DetectedObject]:
         kin = o.kinematics   # tracked objects: pose_with_covariance; predicted: initial_pose_with_covariance
         pose = (getattr(kin, "pose_with_covariance", None) or kin.initial_pose_with_covariance).pose
         twist = (getattr(kin, "twist_with_covariance", None) or kin.initial_twist_with_covariance).twist
+        object_id = getattr(getattr(o, "object_id", None), "uuid", None)
+        track_id = bytes(object_id).hex() if object_id is not None and any(object_id) else None
+        dimensions = getattr(getattr(o, "shape", None), "dimensions", None)
         out.append(DetectedObject(
             kind=OBJECT_KINDS.get(best.label, "unknown") if best else "unknown",
             x=pose.position.x,
             y=pose.position.y,
             yaw=yaw_from_quaternion(pose.orientation),
             speed=math.hypot(twist.linear.x, twist.linear.y),
-            existence=o.existence_probability,
+            existence=o.existence_probability, track_id=track_id,
+            length_m=dimensions.x if dimensions is not None and dimensions.x>0 else None,
+            width_m=dimensions.y if dimensions is not None and dimensions.y>0 else None,
         ))
     return out
 

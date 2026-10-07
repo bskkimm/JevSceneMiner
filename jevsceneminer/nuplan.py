@@ -66,7 +66,7 @@ def read_nuplan(paths, object_interval_s: float = 0.45) -> NuplanLog:
         logs.add(db.execute("select map_version from log").fetchone()[0])
         ego_rows += db.execute("select timestamp, x, y, qw, qx, qy, qz, vx, angular_rate_z from ego_pose").fetchall()
         boxes += db.execute(
-            "select lp.timestamp, lb.x, lb.y, lb.yaw, lb.vx, lb.vy, lb.confidence, c.name "
+            "select lp.timestamp, lb.x, lb.y, lb.yaw, lb.vx, lb.vy, lb.confidence, c.name, hex(lb.track_token), lb.length, lb.width "
             "from lidar_box lb join lidar_pc lp on lb.lidar_pc_token = lp.token "
             "join track t on lb.track_token = t.token join category c on t.category_token = c.token").fetchall()
         light_rows += db.execute(
@@ -91,10 +91,11 @@ def read_nuplan(paths, object_interval_s: float = 0.45) -> NuplanLog:
 
     # Objects only every object_interval_s (the script needs them at NOW steps only).
     frames: dict[int, list[DetectedObject]] = {}
-    for t, x, y, yaw, vx, vy, conf, kind in boxes:
+    for t, x, y, yaw, vx, vy, conf, kind, track_id, length, width in boxes:
         frames.setdefault(int(t) * 1000, []).append(DetectedObject(
             kind=OBJECT_KINDS.get(kind, "object"), x=x, y=y, yaw=yaw, speed=math.hypot(vx, vy),
-            existence=conf if conf is not None else 1.0))
+            existence=conf if conf is not None else 1.0, track_id=track_id or None,
+            length_m=length, width_m=width))
     objects, next_ns = [], 0
     for t in sorted(frames):
         if t >= next_ns:
@@ -110,7 +111,9 @@ def read_nuplan(paths, object_interval_s: float = 0.45) -> NuplanLog:
         name=name, date=first.strftime("%Y-%m-%d"), ego=ego, objects=objects,
         lights=sorted(lights.items()),
         indicator_t=np.zeros(0, dtype=np.int64), indicator=np.zeros(0, dtype=np.int64),
-        topics={"source": "nuplan", "logs": [p.stem for p in paths]}, has_indicator=False)
+        topics={"source": "nuplan", "logs": [p.stem for p in paths]}, has_indicator=False,
+        ego_geometry=dict(length_m=5.176,width_m=2.297,center_forward_m=1.461,
+                          pose_reference="rear axle",source="nuPlan Pacifica vehicle model"))
     return NuplanLog(session, location,
                      tags=sorted((int(t) * 1000, kind) for t, kind in tags),
                      camera=sorted((int(t) * 1000, f) for t, f in camera))

@@ -21,6 +21,7 @@ from pathlib import Path
 
 import lanelet2
 import numpy as np
+from shapely.geometry import Polygon
 from lanelet2.core import BasicPoint2d, BasicPoint3d
 from lanelet2.io import Origin
 from lanelet2.projection import UtmProjector
@@ -123,7 +124,11 @@ class LaneMap:
         def find_within(x, y, max_distance):
             found = lanelet2.geometry.findWithin2d(lmap.laneletLayer, BasicPoint2d(x, y), max_distance)
             return [(float(d), ll.id) for d, ll in found]
-        return cls(_build_lanes(lmap), find_within)
+        result = cls(_build_lanes(lmap), find_within)
+        result.polygons = {ll.id: Polygon([(p.x,p.y) for p in ll.leftBound]
+                            + [(p.x,p.y) for p in reversed(list(ll.rightBound))])
+                           for ll in lmap.laneletLayer if ll.id in result.lanes}
+        return result
 
     # ---- geometry -------------------------------------------------------------
 
