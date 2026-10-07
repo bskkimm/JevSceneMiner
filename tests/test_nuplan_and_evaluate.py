@@ -92,3 +92,20 @@ def test_script_says_the_indicator_is_not_recorded(lanemap, lane_change_session)
     text = render(build_timeline(lane_change_session, lanemap), lanemap, T0 + 2 * 10**9)
     assert "indicator during the table: not recorded in this log" in text
     assert "RIGHT" not in text.split("EVENTS")[0]
+
+
+def test_nested_and_legacy_documents_evaluate_identically():
+    from jevsceneminer.evaluate import spans
+    nested = {"scenes": [{"start_ns": "0", "end_ns": "6000000000", "driving_decision": "turn_left",
+                          "longitudinal_phases": [{"end_ns": "2000000000", "decision": "decelerating"},
+                                                  {"end_ns": "6000000000", "decision": "stopped"}]}]}
+    legacy = doc((0, 2, "turn_left", "decelerating"), (2, 6, "turn_left", "stopped"))
+    assert spans(nested, "longitudinal") == spans(legacy, "longitudinal")
+    assert maneuvers(nested) == maneuvers(legacy)
+    assert score_against_gt({"s": legacy}, {"s": nested})["agreement"] == {"lateral": 1.0, "longitudinal": 1.0}
+
+
+def test_legacy_missing_longitudinal_evaluates_as_unknown():
+    from jevsceneminer.evaluate import spans
+    legacy = {"scenes": [{"start_ns": "0", "end_ns": "1000000000", "lateral": "keep_lane"}]}
+    assert spans(legacy, "longitudinal") == [(0.0, 1.0, "unknown")]

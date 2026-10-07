@@ -89,3 +89,20 @@ def test_labels_fill_in_the_traffic_side():
     assert "LEFT indicator comes on" in left.lateral["pull_over"]
     assert "RIGHT indicator comes on" in right.lateral["pull_over"]
     assert cache_key(None, left, "x") != cache_key(None, right, "x")
+
+
+
+def test_classification_preserves_prepared_numeric_facts(tmp_path,monkeypatch,lanemap,lane_change_session):
+    import json
+    from jevsceneminer import cli
+    args=SimpleNamespace(step=.5,max_steps=0,past=2,future=2,table_step=.5,min_scene=2,
+                         model=None,workers=1,require_indicator=False,min_prob=0,min_phase=1)
+    lane_change_session.topics={}
+    meta,scripts=cli._prepare(lane_change_session,lanemap,'right',{},args,tmp_path)
+    path=next((tmp_path/'steps').glob('*.jsonl'))
+    before=[json.loads(line)['facts'] for line in path.read_text().splitlines()]
+    monkeypatch.setattr(cli,'JevClassifier',lambda labels,cache,**kwargs:
+        JevClassifier(labels,cache,client_factory=FakeClient,log=lambda _:None))
+    cli._classify(tmp_path,meta,scripts,LABELS,args)
+    after=[json.loads(line) for line in path.read_text().splitlines()]
+    assert [row['facts'] for row in after]==before
