@@ -8,19 +8,43 @@
 # (left in e.g. Japan, UK, Singapore; right in e.g. the US) or `--traffic-side`.
 # [[with||without]]: the first text is used when the log records the turn indicator,
 # the second (may be empty) when it does not (e.g. nuPlan).
-version: "jsm-1.0"
+version: "jsm-1.4"
 traffic_side: left
 
 lateral:
   instructions: >-
     Which lateral maneuver is the ego vehicle performing at NOW (the t=0s line)?
     Use the PAST and FUTURE lines to judge whether NOW is inside a maneuver.
+    Use ROAD CONTEXT in those rows, together with LANES and ROUTE CONTEXT, as
+    map evidence. Mapped intersection occupancy and physical turning motion have
+    different boundaries: determine the maneuver from observed motion before and
+    after the connector, not connector entry/exit alone. Following a mapped ordinary road curve is keep_lane, even
+    with a large heading change. A mapped intersection plus a turning path
+    supports turn_left or turn_right; being inside an intersection alone does
+    not imply a turn (STRAIGHT can be keep_lane). When intersection information
+    or the map match is missing, it is insufficient evidence for an intersection
+    turn: do not infer one from heading change alone.
+    Use EGO BODY AND LANE OCCUPANCY for partial body departure, connected lane
+    continuity and a continuous window reference. Segment shares may overlap in
+    intersections; boundary estimates have unvalidated map alignment. A matched
+    pose point does not imply the whole body remains inside. Partial occupancy
+    alone cannot distinguish lane change from avoidance. Use temporal motion,
+    return or settling, and the same obstacle aliases in OBJECTS AT NOW and
+    OBJECT INTERACTION CONTEXT. Do not infer intent from a geometric proxy alone.
+    Use FORK CONTEXT to distinguish choosing a mapped non-intersection successor
+    branch from crossing into a neighboring lane. LEFT/RIGHT describe the fork
+    alternatives relative to each other, not heading change alone. Missing or
+    ambiguous fork evidence is insufficient for branch_left or branch_right;
+    a MIDDLE branch remains keep_lane unless another maneuver applies.
   labels:
     keep_lane: >-
-      Staying in its lane, including following road curves and taking one side
-      where the road forks. Choose this when none of the other maneuvers
+      Staying in its lane, including following road curves and ordinary connected
+      lane segments. A clear mapped fork choice is branch_left or branch_right.
+      Choose this when none of the other maneuvers
       applies. A stop is keep_lane unless it happens in the middle of a turn,
-      U-turn, pull-over or pull-away.
+      U-turn, lane change, avoidance, pull-over or pull-away. Preserve a maneuver
+      through a pause only when the observed motion before and after supports
+      an unfinished maneuver; a stop by itself does not establish one.
     turn_left:
       indicator: left
       definition: >-
@@ -64,11 +88,29 @@ lateral:
         Moving from its lane into the side-by-side neighbor lane on the right,
         from when it starts drifting toward that lane until it has settled in it.[[
         The RIGHT indicator is required; without it, this is keep_lane.||]]
+    branch_left: >-
+      Following the left branch of a mapped non-intersection road fork, as
+      shown by FORK CONTEXT and the actual future path. From when the ego commits
+      to the diverging path until it is established on the selected branch.
+      It follows a successor lane rather than crossing into a side-by-side lane.
+      An ordinary road curve is keep_lane; an intersection turn is turn_left.
+    branch_right: >-
+      Following the right branch of a mapped non-intersection road fork, as
+      shown by FORK CONTEXT and the actual future path. From when the ego commits
+      to the diverging path until it is established on the selected branch.
+      It follows a successor lane rather than crossing into a side-by-side lane.
+      An ordinary road curve is keep_lane; an intersection turn is turn_right.
     avoidance: >-
       Moving sideways to pass a stopped vehicle or obstacle ahead, either within
       its lane or partly leaving it, then returning to its lane. From when it
       starts moving sideways until it is back near the lane center. Not a lane
-      change: the ego vehicle does not settle in another lane.
+      change: the ego vehicle does not settle in another lane. Use OBJECT INTERACTION
+      CONTEXT and continuous lateral/body-occupancy evidence for a temporally
+      related obstacle and bypass. Body clearance is edge-to-edge, not pose-point
+      distance. Reference-lane intrusion, lateral excursion and subsequent return
+      support a bypass interpretation together; none alone determines avoidance.
+      A nearby object snapshot alone, unknown map relationship, or corridor overlap
+      alone is insufficient to claim avoidance; geometric association is not causation.
     pull_over:
       indicator: curb
       definition: >-
@@ -84,7 +126,11 @@ lateral:
 longitudinal:
   instructions: >-
     How is the ego vehicle's speed changing around NOW, from about 2 s before to
-    2 s after the t=0s line?
+    2 s after the t=0s line? Use LOCAL SPEED CONTEXT for precise speed at NOW,
+    speed change and local acceleration/braking onset; the wider window's extrema
+    may belong to a different maneuver. Very slow moving speed is not necessarily
+    stopped even if the table rounds it to 0 km/h. Derived smoothed signals can
+    soften short braking peaks; missing or partial context weakens the evidence.
   labels:
     stopped: Stopped, speed about 0.
     accelerating: Moving and speeding up by more than about 1 m/s.

@@ -47,7 +47,18 @@ def load_scenes(folder: Path) -> dict[str, dict]:
 
 def spans(doc: dict, key: str = "lateral") -> list[tuple[float, float, str]]:
     """(start_s, end_s, label) per scene, epoch seconds."""
-    return [(int(s["start_ns"]) / 1e9, int(s["end_ns"]) / 1e9, s[key]) for s in doc["scenes"]]
+    out = []
+    for scene in doc["scenes"]:
+        a, b = int(scene["start_ns"]) / 1e9, int(scene["end_ns"]) / 1e9
+        if key == "longitudinal" and "longitudinal_phases" in scene:
+            for phase in scene["longitudinal_phases"]:
+                end = int(phase["end_ns"]) / 1e9
+                out.append((a, end, phase["decision"]))
+                a = end
+        else:
+            label = scene["driving_decision"] if key == "lateral" and "driving_decision" in scene else scene.get(key, "unknown")
+            out.append((a, b, label or "unknown"))
+    return out
 
 
 def maneuvers(doc: dict) -> list[tuple[float, float, str]]:

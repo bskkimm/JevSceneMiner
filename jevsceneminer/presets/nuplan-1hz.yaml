@@ -1,0 +1,13 @@
+# Explicit preferred retrospective configuration; ordinary CLI defaults stay compatible.
+past: 10
+future: 15
+step: 1.0
+table_step: 1.0
+model: jev-1.13.0
+workers: 8
+min_scene: 2.0
+min_phase: 1.0
+min_prob: 0.4
+maneuver_tail: 2.0
+camera_ground_offset: 0.24
+camera_height_reference: stationary_landmarks

@@ -126,6 +126,8 @@ class AnswerCache:
     def __init__(self, path: Path):
         self.path = Path(path)
         self._answers: dict[str, Answer] = {}
+        # Successful responses written by this instance, including repeated keys.
+        self.written_answers: list[Answer] = []
         if self.path.exists():
             for line in self.path.read_text().splitlines():
                 if line.strip():
@@ -140,6 +142,7 @@ class AnswerCache:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.path, "a") as fh:
             fh.write(json.dumps({"key": key, "answer": asdict(answer)}, ensure_ascii=False) + "\n")
+        self.written_answers.append(answer)
 
 
 def parse_response(response) -> Answer:

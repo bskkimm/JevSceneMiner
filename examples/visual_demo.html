@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>JevSceneMiner · synthetic layout illustration</title>
+<style>
+html,body { margin:0; background:#0c1320; color:#e8edf7; font-family:system-ui,sans-serif; }
+svg { width:960px; height:540px; display:block; }
+text:not([fill]) { fill:#e8edf7; }
+</style>
+<svg id="illustration" viewBox="0 0 960 540" role="img" aria-label="Synthetic illustration of a driving review: camera, BEV, probabilities and scene timeline">
+<defs>
+<linearGradient id="sky" x2="0" y2="1"><stop stop-color="#263b52"/><stop offset="1" stop-color="#7a9ba5"/></linearGradient>
+<linearGradient id="road" x2="0" y2="1"><stop stop-color="#4f5a63"/><stop offset="1" stop-color="#232a34"/></linearGradient>
+</defs>
+<rect width="960" height="540" fill="#0c1320"/>
+<text x="22" y="29" font-size="21" font-weight="750">JevSceneMiner</text>
+<text x="226" y="28" font-size="14" fill="#aab9ce">logs → evidence → decisions → review</text>
+<text x="740" y="28" font-size="12" fill="#ffc958">SYNTHETIC ILLUSTRATION</text>
+<svg x="16" y="44" width="928" height="392" viewBox="0 0 928 392">
+<rect width="928" height="392" rx="8" fill="url(#sky)"/>
+<path d="M0 157 L120 146 L150 108 L208 132 L246 114 L291 150 L349 146 L399 165 L545 165 L576 143 L628 147 L677 97 L728 122 L765 80 L833 130 L887 98 L928 116 V392 H0Z" fill="#31494a"/>
+<path d="M388 159 L538 159 L855 392 L56 392 Z" fill="#929689"/>
+<path d="M404 159 L523 159 L791 392 L119 392 Z" fill="url(#road)"/>
+<path d="M436 159 L303 392 M493 159 L630 392" stroke="#d7dcce" stroke-width="3"/>
+<path id="centerline" d="M465 159 L465 392" stroke="#e6e9df" stroke-width="3" stroke-dasharray="14 16"/>
+<path id="ribbon" fill="none" stroke="#59d5ee" stroke-width="15" stroke-linecap="round" opacity=".95"/>
+<rect x="11" y="10" width="218" height="260" rx="6" fill="#0c1320" fill-opacity=".92" stroke="#7c8ba7"/>
+<text x="24" y="32" font-size="13" font-weight="650">Bird's-eye view</text>
+<path d="M50 47 H190 V260 H50Z" fill="#303a4c"/>
+<path d="M50 47 V260 M190 47 V260" stroke="#abb8cc" stroke-width="2"/>
+<path d="M120 47 V260" stroke="#abb8cc" stroke-width="2" stroke-dasharray="7 8"/>
+<path id="bevPath" fill="none" stroke="#59d5ee" stroke-width="5"/>
+<rect id="ego" x="83" y="235" width="15" height="24" rx="3" fill="#f4f7fc"/>
+<rect x="728" y="10" width="190" height="94" rx="6" fill="#0c1320" fill-opacity=".92"/>
+<text x="740" y="32" font-size="14" font-weight="700">Lateral Decision</text>
+<text id="winner" x="740" y="55" font-size="12" font-weight="750" fill="#59d5ee">keep_lane</text>
+<text id="probability" x="897" y="55" text-anchor="end" font-size="14" fill="#59d5ee">92%</text>
+<text id="runnerup" x="740" y="77" font-size="12" fill="#aab9ce">lane_change_right</text>
+<text id="runnerupProbability" x="897" y="77" text-anchor="end" font-size="12" fill="#aab9ce">6%</text>
+<text x="740" y="95" font-size="11" fill="#aab9ce">Illustrative probabilities</text>
+<rect x="728" y="112" width="190" height="77" rx="6" fill="#0c1320" fill-opacity=".92"/>
+<text x="740" y="134" font-size="14" font-weight="700">Longitudinal Decision</text>
+<text x="740" y="156" font-size="14" font-weight="750" fill="#59d5ee">cruising</text>
+<text x="897" y="156" text-anchor="end" font-size="14" fill="#59d5ee">97%</text>
+<text x="740" y="176" font-size="12" fill="#aab9ce">accelerating</text>
+<text x="897" y="176" text-anchor="end" font-size="12" fill="#aab9ce">2%</text>
+<text x="243" y="29" font-size="12" fill="#d3e0eb">Synthetic camera illustration · recorded-path concept</text>
+<text id="decision" x="464" y="381" text-anchor="middle" font-size="24" font-weight="800" stroke="#0c1320" stroke-width="3" paint-order="stroke fill" fill="#59d5ee">keep_lane<tspan fill="#59d5ee"> (cruising)</tspan></text>
+</svg>
+<text x="22" y="461" font-size="13" fill="#aab9ce">Merged lateral scenes</text>
+<rect x="194" y="445" width="251" height="29" rx="4" fill="#59d5ee"/>
+<rect x="448" y="445" width="225" height="29" rx="4" fill="#ffcc38"/>
+<rect x="676" y="445" width="261" height="29" rx="4" fill="#59d5ee"/>
+<text x="319" y="465" font-size="13" fill="#10213a" text-anchor="middle">keep_lane</text>
+<text x="560" y="465" font-size="13" fill="#10213a" text-anchor="middle">lane_change_right</text>
+<text x="806" y="465" font-size="13" fill="#10213a" text-anchor="middle">keep_lane</text>
+<path id="cursor" stroke="#fff" stroke-width="2" d="M194 439V481"/>
+<text x="22" y="514" font-size="14">Past 10 s · Future 15 s · Inference 1 Hz</text>
+<text x="578" y="514" font-size="13" fill="#aab9ce">Original synthetic graphics · no API · no dataset footage</text>
+</svg>
+<script>
+function renderFrame(time) {
+  const t=Math.max(0,Math.min(8,time));
+  const changing=t>=2.75&&t<5.2;
+  const color=changing?'#ffcc38':'#59d5ee', label=changing?'lane_change_right':'keep_lane';
+  const progress=Math.max(0,Math.min(1,(t-2.75)/2.45));
+  const lateral=progress*82, cameraLateral=progress*84;
+  document.getElementById('centerline').setAttribute('stroke-dashoffset',String(-t*24));
+  document.getElementById('ribbon').setAttribute('d',`M ${381+cameraLateral} 378 C ${381+cameraLateral} 325 521 253 491 188`);
+  document.getElementById('ribbon').setAttribute('stroke',color);
+  document.getElementById('bevPath').setAttribute('d',`M ${90+lateral} 247 C ${90+lateral} 192 172 179 172 55`);
+  document.getElementById('bevPath').setAttribute('stroke',color);
+  document.getElementById('ego').setAttribute('x',String(83+lateral));
+  const winner=document.getElementById('winner');winner.textContent=label;winner.setAttribute('fill',color);
+  const probability=document.getElementById('probability');probability.textContent=changing?'86%':'92%';probability.setAttribute('fill',color);
+  document.getElementById('runnerup').textContent=changing?'keep_lane':'lane_change_right';
+  document.getElementById('runnerupProbability').textContent=changing?'12%':'6%';
+  const decision=document.getElementById('decision');decision.firstChild.textContent=label;decision.setAttribute('fill',color);
+  document.getElementById('cursor').setAttribute('d',`M${194+t/8*743} 439V481`);
+}
+renderFrame(0);
+if(!new URLSearchParams(location.search).has('capture')) {
+  const start=performance.now();
+  function tick(now){renderFrame((now-start)/1000%8);requestAnimationFrame(tick);}
+  requestAnimationFrame(tick);
+}
+</script>
+</html>
