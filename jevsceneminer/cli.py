@@ -26,6 +26,9 @@ from .scenes import Step, session_document, stitch, write_scenes, extend_maneuve
 from .script import SAMPLE_SCHEMA_VERSION, TABLE_STEP_S, render_sample, strip_map
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_LABELS = REPO_ROOT / 'labels.yaml'
+if not DEFAULT_LABELS.is_file():
+    DEFAULT_LABELS = Path(__file__).resolve().parent / 'labels.yaml'
 PRICE_PER_M_INPUT_TOKENS = 0.042  # USD, TypeSafe's published price; output tokens are free
 
 
@@ -111,7 +114,7 @@ def _prepare(session, lanemap, traffic_side: str, extras: dict, args, out: Path)
     timeline = build_timeline(session, lanemap)
     span = (session.end_ns - session.start_ns) / 1e9
     print(f"{session.date} {session.name}: {span:.0f} s of driving ({time.time() - t1:.1f} s), "
-          f"{', '.join(f'{k} {v}' for k, v in session.topics.items() if k != 'decode_errors')}", flush=True)
+          f"{', '.join(f'{k} {v}' for k, v in (session.topics or {}).items() if k != 'decode_errors')}", flush=True)
 
     step_ns = int(round(args.step * 1e9))
     first = session.start_ns + (-session.start_ns) % step_ns   # steps on a fixed clock grid
@@ -132,9 +135,12 @@ def _prepare(session, lanemap, traffic_side: str, extras: dict, args, out: Path)
     (out / "indicator" / f"{sid}.json").write_text(json.dumps(indicator_segments(session)))
     meta = {"date": session.date, "name": session.name, "start_ns": session.start_ns, "end_ns": session.end_ns,
             "step_s": args.step, "past_s": args.past, "future_s": args.future,
-            "table_step_s": args.table_step, "sample_schema_version": SAMPLE_SCHEMA_VERSION, "ego_geometry": session.ego_geometry, "topics": session.topics,
+            "table_step_s": args.table_step, "sample_schema_version": SAMPLE_SCHEMA_VERSION, "ego_geometry": session.ego_geometry, "topics": session.topics or {},
             "traffic_side": traffic_side, "has_indicator": session.has_indicator,
-            "map": extras.get("map"), "location": extras.get("location"), "sources": extras.get("sources")}
+            "map": extras.get("map"), "location": extras.get("location"), "sources": extras.get("sources"),
+            "inference_model": args.model, "preset": getattr(args, 'preset', None),
+            "camera_ground_offset_m": getattr(args, 'camera_ground_offset', 0.0),
+            "camera_height_reference": getattr(args, 'camera_height_reference', 'raw')}
     (out / "meta" / f"{sid}.json").write_text(json.dumps(meta))
     for sub in ("tags", "camera"):
         if extras.get(sub):
@@ -160,18 +166,48 @@ def _classify(out: Path, meta: dict, scripts: dict, labels, args) -> None:
     """Ask Jev about every script of one session, then stitch and write its run file."""
     sid = f"{meta['date']}_{meta['name']}"
     cache = AnswerCache(out / "cache" / f"{sid}.jsonl")
-    answers = JevClassifier(labels, cache, model=args.model, workers=args.workers).classify(scripts)
-    # Keep the canonical audit facts when adding Jev answers to prepared samples.
-    facts_by_time = {row['t_ns']: row['facts'] for line in (out / "steps" / f"{sid}.jsonl").read_text().splitlines()
-                     if (row := json.loads(line)).get('facts') is not None}
-    with open(out / "steps" / f"{sid}.jsonl", "w") as fh:
-        for t, text in scripts.items():
-            a = answers[t]
-            fh.write(json.dumps({"t_ns": t, "script": text, "lateral": a.lateral, "lateral_probs": a.lateral_probs,
-                                 "longitudinal": a.longitudinal, "longitudinal_probs": a.longitudinal_probs,
-                                 "model": a.model, "input_tokens": a.input_tokens,
-                                 "cache_key": cache_key(args.model, labels, text),
-                                 **({"facts":facts_by_time[t]} if t in facts_by_time else {})}, ensure_ascii=False) + "\n")
+    path = out / 'steps' / f'{sid}.jsonl'
+    lines = path.read_text().splitlines(keepends=True)
+    rows = [json.loads(line) for line in lines if line.strip()]
+    model = args.model or meta.get('inference_model')
+    from_s, to_s = getattr(args, 'from_s', None), getattr(args, 'to_s', None)
+    ranged = from_s is not None
+    selected = scripts if not ranged else {t: text for t, text in scripts.items()
+        if meta['start_ns'] + round(from_s*1e9) <= t < meta['start_ns'] + round(to_s*1e9)}
+    if not selected:
+        print('  no samples in requested range; no files or answers changed', flush=True)
+        return
+    answers = {}
+    for row in rows:
+        if row['t_ns'] in selected:
+            continue
+        if 'lateral' not in row or row.get('cache_key') != cache_key(model, labels, row['script']):
+            raise ValueError('outside range: missing answers or incompatible question/model cache key; classify the full run first')
+        answers[row['t_ns']] = Answer(row['lateral'], row['lateral_probs'], row.get('longitudinal'),
+            row.get('longitudinal_probs', {}), row.get('model'), row.get('input_tokens'))
+    started = time.perf_counter()
+    old_keys = set(cache._answers)
+    answers.update(JevClassifier(labels, cache, model=model, workers=args.workers).classify(selected))
+    inference_seconds = time.perf_counter() - started
+    fresh = [a for key, a in cache._answers.items() if key not in old_keys]
+    result = []
+    for line in lines:
+        if not line.strip():
+            result.append(line)
+            continue
+        row = json.loads(line)
+        t = row['t_ns']
+        if t not in selected:
+            result.append(line)
+            continue
+        a = answers[t]
+        row.update(script=selected[t], lateral=a.lateral, lateral_probs=a.lateral_probs,
+            longitudinal=a.longitudinal, longitudinal_probs=a.longitudinal_probs,
+            model=a.model, input_tokens=a.input_tokens, cache_key=cache_key(model, labels, selected[t]))
+        result.append(json.dumps(row, ensure_ascii=False)+'\n')
+    temporary = path.with_suffix('.jsonl.tmp')
+    temporary.write_text(''.join(result))
+    temporary.replace(path)
     indicator = None
     if args.require_indicator:
         indicator = json.loads((out / "indicator" / f"{sid}.json").read_text())
@@ -187,8 +223,17 @@ def _classify(out: Path, meta: dict, scripts: dict, labels, args) -> None:
         "table_step_s": meta.get("table_step_s"),
         "min_scene_s": args.min_scene, "min_phase_s": args.min_phase, "min_prob": args.min_prob,
         "maneuver_tail_s": getattr(args,"maneuver_tail",0.0),
-        "require_indicator": args.require_indicator, "traffic_side": labels.traffic_side})
+        "require_indicator": args.require_indicator, "traffic_side": labels.traffic_side,
+        "reclassified_samples": len(selected), "classification_range_s": [from_s, to_s] if ranged else None})
     path = write_scenes(out, doc)
+    (out / 'runtime').mkdir(exist_ok=True)
+    tokens = sum(a.input_tokens or 0 for a in fresh)
+    (out / 'runtime' / f'{sid}.json').write_text(json.dumps(dict(
+        inference_seconds=inference_seconds, selected_samples=len(selected), fresh_answers=len(fresh),
+        input_tokens=tokens, estimated_cost_usd=tokens*PRICE_PER_M_INPUT_TOKENS/1e6,
+        model=model, range_s=[from_s, to_s] if ranged else None,
+        price_per_million_input_tokens_usd=PRICE_PER_M_INPUT_TOKENS,
+        pricing_source='https://docs.typesafe.ai/models'), indent=2)+'\n')
     n_tokens = sum(a.input_tokens or 0 for a in answers.values())
     print(f"  {len(scenes)} scenes -> {path} (models {models}, {n_tokens} input tokens)", flush=True)
 
@@ -311,6 +356,10 @@ def cmd_view(args) -> int:
 
 def main(argv=None) -> int:
     load_dotenv()
+    argv = list(sys.argv[1:] if argv is None else argv)
+    preliminary = argparse.ArgumentParser(add_help=False)
+    preliminary.add_argument('--preset', choices=['nuplan-1hz'])
+    preset_args, _ = preliminary.parse_known_args(argv)
     p = argparse.ArgumentParser(prog="jevsceneminer", description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
 
@@ -328,7 +377,12 @@ def main(argv=None) -> int:
                         "(roles: ego, objects, lights, indicator)")
     r.add_argument("--keep-going", action="store_true", help="skip sessions whose bags lack required topics")
     r.add_argument("--out", required=True)
-    r.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
+    r.add_argument("--labels", default=str(DEFAULT_LABELS))
+    r.add_argument('--preset', choices=['nuplan-1hz'], help='explicit past10/future15, 1Hz nuPlan configuration')
+    r.add_argument('--camera-ground-offset', type=float, default=0.0,
+                   help='optional approximate downward camera-ribbon offset in meters; visualization only')
+    r.add_argument('--camera-height-reference', choices=['raw', 'stationary_landmarks'], default='raw',
+                   help='optional shared stationary-landmark height alignment; approximate, nuPlan only')
     r.add_argument("--traffic-side", choices=("left", "right"), default=None,
                    help="side traffic drives on (default: the nuPlan city, else labels.yaml's traffic_side)")
     r.add_argument("--step", type=float, default=0.5, help="seconds between NOW steps (0.5 = 2 Hz)")
@@ -355,7 +409,9 @@ def main(argv=None) -> int:
 
     c = sub.add_parser("classify", help="Jev + scenes for sessions prepared by `run --dry-run`")
     c.add_argument("out", help="the --out folder of `run --dry-run`")
-    c.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
+    c.add_argument("--labels", default=str(DEFAULT_LABELS))
+    c.add_argument('--from-s', type=float, help='rerun NOWs from this elapsed session time, inclusive; requires --to-s')
+    c.add_argument('--to-s', type=float, help='rerun NOWs before this elapsed session time, exclusive')
     c.add_argument("--traffic-side", choices=("left", "right"), default=None,
                    help="side traffic drives on (default: labels.yaml's traffic_side)")
     c.add_argument("--min-scene", type=float, default=2.0)
@@ -372,7 +428,7 @@ def main(argv=None) -> int:
     t = sub.add_parser("restitch", help="rebuild scenes from saved answers with other settings (no Jev calls)")
     t.add_argument("src", help="an --out folder of `jevsceneminer run`")
     t.add_argument("--out", required=True)
-    t.add_argument("--labels", default=str(REPO_ROOT / "labels.yaml"))
+    t.add_argument("--labels", default=str(DEFAULT_LABELS))
     t.add_argument("--traffic-side", choices=("left", "right"), default=None,
                    help="side traffic drives on (default: labels.yaml's traffic_side)")
     t.add_argument("--min-scene", type=float, default=2.0)
@@ -402,10 +458,21 @@ def main(argv=None) -> int:
     for parser in (r,c,t):
         parser.add_argument('--maneuver-tail', type=float, default=0.0,
                             help='extend maneuver ends into following keep_lane by at most this many seconds')
+    if preset_args.preset:
+        settings = yaml.safe_load((Path(__file__).resolve().parent / 'presets' / f'{preset_args.preset}.yaml').read_text())
+        r.set_defaults(**settings)
     args = p.parse_args(argv)
     if args.command in ('run','classify','restitch') and (not math.isfinite(args.maneuver_tail) or args.maneuver_tail < 0):
         p.error('--maneuver-tail must be finite and nonnegative')
     if args.command == "run":
+        if args.preset and (not args.nuplan or args.sessions or args.spans):
+            p.error('--preset nuplan-1hz requires only --nuplan inputs')
+        if not math.isfinite(args.step) or args.step < DT_S:
+            p.error(f'--step must be finite and at least {DT_S} seconds')
+        if not math.isfinite(args.camera_ground_offset) or args.camera_ground_offset < 0:
+            p.error('--camera-ground-offset must be finite and nonnegative')
+        if args.camera_height_reference != 'raw' and (not args.nuplan or args.sessions or args.spans):
+            p.error('--camera-height-reference stationary_landmarks requires only --nuplan inputs')
         if not math.isfinite(args.table_step) or args.table_step < DT_S:
             p.error(f"--table-step must be finite and at least {DT_S} seconds")
         geometry_values=(args.ego_length,args.ego_width,args.ego_center_offset)
@@ -413,6 +480,12 @@ def main(argv=None) -> int:
             if not all(v is not None and math.isfinite(v) for v in geometry_values) or min(geometry_values[:2])<=0:
                 p.error("provide finite --ego-length, --ego-width and --ego-center-offset together; dimensions must be positive")
         args.topic_lists = yaml.safe_load(Path(args.topics).read_text()) if args.topics else None
+    if args.command == 'classify':
+        a, b = args.from_s, args.to_s
+        if (a is None) != (b is None) or a is not None and (not all(math.isfinite(v) for v in (a,b)) or not 0 <= a < b):
+            p.error('provide finite --from-s and --to-s together with 0 <= from < to')
+        if a is not None and args.strip_map:
+            p.error('--strip-map requires a full run, so questions/state stay consistent outside the range')
     needs_key = (args.command == "run" and not args.dry_run) or args.command == "classify"
     if needs_key and not os.environ.get("TYPESAFE_API_KEY"):
         print("TYPESAFE_API_KEY is not set (put it in .env), or use --dry-run", file=sys.stderr)
