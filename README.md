@@ -1,211 +1,172 @@
 # JevSceneMiner
 
-Find interesting scenes in driving logs with [Jev](https://docs.typesafe.ai/introduction), a fast general-purpose classifier from [TypeSafe AI](https://typesafe.ai/).
+[![Quality checks](https://github.com/bskkimm/JevSceneMiner/actions/workflows/ci.yml/badge.svg)](https://github.com/bskkimm/JevSceneMiner/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status:** proof of concept. Reads Autoware rosbags (MCAP) with a Lanelet2 map, or [nuPlan](https://www.nuscenes.org/nuplan) logs with their maps, and labels the ego vehicle's driving decisions. No driving data is included: bring your own logs, or download nuPlan.
+Find and review driving maneuvers in Autoware rosbags and [nuPlan](https://www.nuscenes.org/nuplan) logs with [Jev](https://docs.typesafe.ai/introduction).
+Describe recorded motion and map evidence, classify each moment, and merge answers into timestamped scenes.
 
-## Goal
+![Synthetic illustration of the review layout](docs/assets/pipeline-demo.gif)
 
-Driving logs run for hours, but the moments worth studying, such as a car cutting in, a pedestrian crossing, or a hard brake, last only seconds. Finding them by hand is slow, and hand-writing a rule for every scenario doesn't scale.
+*Illustrative animation with synthetic motion and labels. It demonstrates the layout; it is not a camera recording or an accuracy benchmark.*
 
-JevSceneMiner describes each moment of a log as a short text **script** and lets Jev decide which scenario it belongs to. Scenarios are defined in plain language, so adding a new one doesn't require training a new model.
-
-## Pipeline
-
+```text
+Autoware MCAP + Lanelet2 map ─┐
+                            ├─► shared ego/object timeline
+nuPlan SQLite + map ─────────┘          │
+                                      ▼
+                         structured facts + readable script
+                         past ─────── NOW ─────── future
+                                      │
+                         Jev: lateral + longitudinal
+                                      │
+                              raw probabilities
+                                      │
+                         merge lateral scenes
+                         └─ consecutive speed phases
+                                      │
+                          camera / BEV / timeline / GT
 ```
-Autoware rosbag + Lanelet2 map, or nuPlan log + map
-    │  every 0.5 s: a script of the 5 s before and 10 s after NOW
-    ▼
-script  ──────►  Jev  ──────►  scenes
- • ego state                    • lateral / longitudinal label
- • lanes and route              • probability
- • traffic light, indicator     • start / end time
- • surrounding objects
+
+One lane change can contain several speed phases without becoming several lateral scenes.
+Review raw probabilities beside final decisions, color recorded future paths by scene, and edit ground truth (GT).
+
+This is an experimental scene-mining tool. Map matching is evidence; overlapping polygons are not verified physical lane ownership.
+See [schema](docs/schema.md), [review annotations](docs/review.md), and [evaluation](docs/evaluation.md).
+
+## Try it without an API key
+
+Tested on Linux with Python 3.10 and 3.11. Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
+
+```bash
+git clone https://github.com/bskkimm/JevSceneMiner.git
+cd JevSceneMiner
+uv sync --frozen
+uv run python examples/pipeline_demo.py --source rosbag --out out/demo
+uv run jevsceneminer view out/demo --gt out/demo-gt --port 8650
 ```
 
-1. **Script:** facts computed from the full-rate data (Jev is not asked to do arithmetic): lane and lane changes, speed, acceleration, yaw rate, heading change, indicator, traffic light, the intersections and stops along the ego's path, and nearby objects. Only relative facts: no map IDs, positions or clock times.
-2. **Jev:** two Choice questions per script (9 lateral labels such as `turn_left`, `u_turn` and `lane_change_right`; 5 longitudinal labels such as `cruising` and `hard_braking`), with the definitions in [`labels.yaml`](labels.yaml). Jev returns a probability for every label.
-3. **Scenes:** consecutive steps with the same labels become one scene with start/end times; short flickers and low-confidence maneuvers are smoothed away.
+Open **http://127.0.0.1:8650**. The demo generates a ROS 2 MCAP, a tiny map, full processed samples, and illustrative cached answers. Unexpected API requests are blocked.
+It has timeline and script data; its source contains no camera images. The production BEV and camera overlays require nuPlan sources.
+Use `--source nuplan` with a new output directory to exercise the SQLite adapter. Both synthetic sources use the same small Lanelet2 map fixture.
+
+Read a complete [processed sample](examples/sample.json), its [Jev input](examples/sample.txt), or the resulting [scene document](examples/scenes.json).
+
+## Run on your logs
+
+Set `TYPESAFE_API_KEY` in your environment or an ignored `.env` file.
+`--dry-run` prepares inputs without inference; remove it or run `classify` when ready to call the API.
+Download logs, maps and optional images separately under their source terms. No driving dataset is included.
+
+### nuPlan
+
+```bash
+uv run jevsceneminer run \
+  --nuplan /path/to/log.db --nuplan-maps /path/to/maps \
+  --preset nuplan-1hz --out out/nuplan --dry-run
+uv run jevsceneminer classify out/nuplan --maneuver-tail 2
+uv run jevsceneminer view out/nuplan --gt out/nuplan-gt \
+  --sensor-root /path/to/sensor_blobs --port 8650
+```
+
+| Explicit `nuplan-1hz` preset | Value |
+| --- | --- |
+| Context | 10 s past, 15 s future |
+| Inference / table | 1 Hz / 1 Hz (26 rows in a complete window) |
+| Model / concurrent workers | `jev-1.13.0` / 8 |
+| Minimum lateral scene / speed phase | 2 s / 1 s |
+| Minimum mean lateral support | 0.4 |
+| Maneuver tail | Up to 2 s into following keep-lane |
+| Camera height reference | Stationary landmarks; approximate 0.24 m offset |
+
+Explicit flags override preset values. Add `--table-step 0.5` for a 2 Hz table with 1 Hz inference.
+Without a preset, defaults remain 10 s past / 10 s future, 2 Hz inference / 2 Hz table, no tail, and raw camera height.
+Height correction is display-only and approximate.
+Separate `classify` commands inherit the prepared model; pass merging flags explicitly.
+
+### Autoware rosbag
+
+```bash
+uv run jevsceneminer run /path/to/session \
+  --map /path/to/lanelet2_map.osm --traffic-side left \
+  --past 10 --future 15 --step 1 --table-step 1 \
+  --model jev-1.13.0 --out out/autoware --dry-run
+```
+
+The map must contain `local_x` / `local_y` in the logged pose frame.
+Autoware topics are discovered automatically; use `--topics` for overrides.
+Missing fields stay unknown. For footprint evidence, configure a known ego model:
+`--ego-length 4.8 --ego-width 2.0 --ego-center-offset 0` when the pose is at body center.
+nuPlan uses its Pacifica dimensions and rear-axle reference.
+
+### Open a remote viewer on your laptop
+
+Run `view` on the machine with the data. On your laptop:
+
+```bash
+ssh -N -L 18656:127.0.0.1:8650 tier4-desktop
+```
+
+Keep SSH open and visit **http://127.0.0.1:18656**. Replace the alias and remote port for your machine.
+
+## Outputs and review
+
+```text
+out/run/
+├── meta/        sources, geometry, cadence, context and display settings
+├── steps/       JSONL: script, facts, raw answers/probabilities at each NOW
+├── cache/       answers keyed by model + exact questions + exact script
+├── scenes/      lateral intervals with consecutive speed phases
+├── runtime/     latest inference timing, fresh tokens and estimated cost
+├── indicator/   recorded indicator periods
+├── rules/       simple geometry/speed baseline
+└── camera/, tags/  optional camera index and scenario tags
+```
+
+The camera has BEV at top left, **Lateral Decision** and **Longitudinal Decision** probabilities at top right, and the merged decision at the bottom.
+Panels update at 1 Hz during playback.
+Lateral colors agree across camera, BEV and timeline; longitudinal winners share one color.
+The BEV spans 50 m across and 60 m vertically, with ego 95% down.
+Projection uses image-capture pose and calibration: a recorded future path, not a forecast or measured road surface.
+
+**Edit GT** supports adding, splitting, merging and relabeling scenes and editing consecutive speed phases.
+Changes save only when you select **Save**. Legacy flat scenes remain readable.
+The `?mock=1` preview uses fictional browser-only answers.
+
+```bash
+# Rebuild scenes without calling Jev.
+uv run jevsceneminer restitch out/nuplan --out out/restitch --maneuver-tail 2
+
+# Rerun selected NOWs: elapsed seconds, inclusive start / exclusive end.
+uv run jevsceneminer classify out/nuplan --from-s 100 --to-s 120 --maneuver-tail 2
+
+# Compare with independently labeled scenes.
+uv run jevsceneminer score out/nuplan --gt out/nuplan-gt
+```
+
+Ranged inference preserves outside raw rows and rebuilds scenes from all answers.
+It requires compatible outside answers and applies to each session in the folder.
+Read [review.md](docs/review.md) before correcting evidence or using the optional compact experiment.
 
 ## Labels
 
-Each script gets two questions. Definitions are plain language in [`labels.yaml`](labels.yaml) (version `jsm-1.0`); edit them or add labels without retraining anything.
+[labels.yaml](labels.yaml) defines the two Jev questions in plain language.
 
-| Lateral (what the ego does sideways) | Needs indicator |
-|---|---|
-| `keep_lane`: staying in its lane, including curves and stops | |
-| `turn_left` / `turn_right`: a turn at an intersection (heading change about 45–150°) | LEFT / RIGHT |
-| `u_turn`: turning back the way it came (about 180°) | far side |
-| `lane_change_left` / `lane_change_right`: moving into the neighbor lane | LEFT / RIGHT |
-| `avoidance`: moving sideways to pass a stopped vehicle or obstacle, then returning | |
-| `pull_over`: moving to the road edge and stopping | curb side |
-| `pull_away`: leaving the road edge back into traffic | far side |
+| Lateral decision | Longitudinal phase |
+| --- | --- |
+| `keep_lane`, `turn_left`, `turn_right`, `u_turn` | `stopped`, `accelerating`, `decelerating` |
+| `lane_change_left`, `lane_change_right` | `hard_braking`, `cruising` |
+| `branch_left`, `branch_right` | |
+| `avoidance`, `pull_over`, `pull_away` | |
 
-| Longitudinal (what the speed does) |
-|---|
-| `stopped`, `accelerating`, `decelerating`, `hard_braking`, `cruising` |
+Changing definitions changes cache keys. Indicator-dependent text is omitted when indicators were not recorded.
+The optional `--require-indicator` merge gate is disabled by default.
 
-"Curb side" is the side traffic drives on (`traffic_side: left` by default; `--traffic-side right` for e.g. the US), and "far side" is the other one. With `--require-indicator`, a maneuver without its indicator becomes `keep_lane`.
+## Contribute and license
 
-## Example
+See [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md), and the [evaluation protocol](docs/evaluation.md).
+Include processed evidence and run configuration in bug reports without credentials or private recordings.
 
-One step's script (shortened, illustrative values), then the kind of scene it ends up in:
-
-```
-Driving log of the ego vehicle around NOW (left-hand traffic). Times are relative to NOW. ...
-
-LANES
-A: road; left neighbor: B (dashed line, can be crossed); right neighbor: none
-B: road; left neighbor: none; right neighbor: A (dashed line, can be crossed)
-
-TIME   LANE     OFFSET   SPEED     ACCEL       YAW RATE  HEADING  INDICATOR  LIGHT
-t=-2s  B        -0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +0°      off        green
-t=-1s  B        -0.9 m   14 km/h   +0.0 m/s²   -6 °/s    -2°      RIGHT      green
-t=+0s  A        +1.7 m   14 km/h   +0.0 m/s²   +0 °/s    +0°      RIGHT      green   <- NOW
-t=+1s  A        +0.3 m   14 km/h   +0.0 m/s²   +6 °/s    +2°      RIGHT      green
-
-EVENTS
-t=-1.5s: indicator RIGHT on
-t=+0.0s: moves from B into its right neighbor A
-
-OBJECTS AT NOW (up to 8 within 30 m)
-car: 13 m ahead, 3 m left, left neighbor lane, 14 km/h
-```
-
-```json
-{"scene_id": "scene_004", "start_ns": "1767000002750000000", "end_ns": "1767000006250000000",
- "lateral": "lane_change_right", "longitudinal": "cruising",
- "lateral_prob": 0.91, "longitudinal_prob": 0.97}
-```
-
-## Usage
-
-```bash
-uv sync
-echo "TYPESAFE_API_KEY=..." > .env           # gitignored
-
-# Scripts + cost estimate only, no Jev calls:
-uv run jevsceneminer run <session_dir>... --map lanelet2_map.osm --out out/run1 --dry-run
-
-# Full run (answers are cached, so re-runs are free):
-uv run jevsceneminer run <session_dir>... --map lanelet2_map.osm --out out/run1
-
-# Jev + scenes for folders prepared with --dry-run; re-stitch saved answers without Jev:
-uv run jevsceneminer classify out/run1
-uv run jevsceneminer restitch out/run1 --out out/run1b --min-prob 0.5
-
-uv run pytest
-```
-
-Useful options of `run` (see `--help`):
-
-| Option | Default | Meaning |
-|---|---|---|
-| `--step` | 0.5 | seconds between steps (one script and one Jev call each) |
-| `--past` / `--future` | 5 / 10 | seconds before / after NOW in each script's table |
-| `--min-scene` | 2.0 | shorter label runs are merged into a neighbor |
-| `--min-prob` | 0.4 | maneuvers with a lower mean probability become `keep_lane` |
-| `--require-indicator` | off | maneuvers need their indicator (see Labels) |
-| `--traffic-side` | left | side traffic drives on |
-| `--lateral-only` | off | ask only the lateral question (half the cost) |
-| `--topics` | Autoware defaults | YAML with other topic names (see below) |
-
-`classify --strip-map` removes every map-derived fact from saved scripts, to measure how much the map helps.
-
-Jev is billed per input token; `--dry-run` prints an estimate (roughly 2,200 tokens per call: 7,200 calls and about $0.70 per hour of driving at 2 Hz).
-
-If ROS is sourced in your shell, run with `env -u PYTHONPATH` so the venv's packages are used.
-No ROS installation is needed: messages are decoded with the definitions stored in each MCAP file.
-
-### Input topics
-
-A session is a folder of MCAP chunks recorded with [Autoware](https://github.com/autowarefoundation/autoware).
-By default these topics are read (the first one present per role):
-
-| Role | Topic | Type |
-|---|---|---|
-| ego | `/localization/kinematic_state`, or `/api/vehicle/kinematics` | `nav_msgs/Odometry`, `autoware_adapi_v1_msgs/VehicleKinematics` |
-| objects | `/perception/object_recognition/tracking/objects`, or `/perception/object_recognition/objects` | `autoware_perception_msgs/TrackedObjects`, `PredictedObjects` |
-| traffic lights | `/perception/traffic_light_recognition/traffic_signals` | `autoware_perception_msgs/TrafficLightGroupArray` |
-| turn indicator | `/vehicle/status/turn_indicators_status` | `autoware_vehicle_msgs/TurnIndicatorsReport` |
-
-The light the ego is approaching is found by matching the recognized group ids to the
-`traffic_light` regulatory elements of the lanes ahead on the ego's path. Other recordings
-can name their own topics with `--topics topics.yaml`, e.g. `lights: [/my/nearest_light]`
-(a topic with a single `TrafficLightGroup` is taken as the light ahead).
-
-### Output
-
-```
-out/run1/
-├── steps/<session>.jsonl      one line per step: the script and Jev's answers with probabilities
-├── scenes/<session>.json      scenes: start_ns / end_ns, lateral / longitudinal label, probability
-├── rules/scenes/<session>.json  the rule baseline, same format
-├── tags/, camera/             nuPlan only: scenario tags and front-camera frame times
-├── report/                    from `score`: report.md and report.json
-├── indicator/<session>.json   periods with the turn indicator on: [start_s, end_s, 2=LEFT | 3=RIGHT]
-├── meta/<session>.json        session span and the settings used
-└── cache/                     Jev answers keyed by script + questions
-```
-
-## nuPlan
-
-[nuPlan](https://www.nuscenes.org/nuplan) has public driving logs and HD maps from Boston, Pittsburgh,
-Las Vegas and Singapore ([CC BY-NC 4.0](https://www.nuscenes.org/terms-of-use): non-commercial use).
-Download the maps, some log databases (e.g. the mini split) and, for the viewer, the camera images, into
-nuPlan's usual layout:
-
-```
-nuplan/
-├── maps/<city>/<version>/map.gpkg
-├── data/cache/<split>/<log>.db
-└── sensor_blobs/<log>/CAM_F0/*.jpg
-```
-
-```bash
-# Scripts for two logs; consecutive slices of one recording can be joined with a comma:
-uv run jevsceneminer run --out out/nuplan --dry-run \
-    --nuplan nuplan/data/cache/mini/<log>.db \
-    --nuplan nuplan/data/cache/mini/<log_part1>.db,nuplan/data/cache/mini/<log_part2>.db
-
-uv run jevsceneminer classify out/nuplan        # Jev
-uv run jevsceneminer score out/nuplan           # vs nuPlan's scenario tags (and --gt, once labeled)
-uv run jevsceneminer view out/nuplan --gt gt/ --sensor-root nuplan/sensor_blobs   # http://127.0.0.1:8650
-```
-
-What differs from rosbags:
-
-- **No turn indicator:** nuPlan does not record it. Scripts say "not recorded", and the label definitions
-  drop their indicator requirement (the `[[with||without]]` parts of `labels.yaml`).
-- **Traffic side** comes from the city (Singapore drives on the left, the US cities on the right).
-- **Traffic lights** are given per intersection lane, so the light ahead is the one of the lane the ego takes.
-- **Scenario tags** (e.g. `starting_left_turn`, `stationary`) are nuPlan's automatic labels. `score` uses them
-  as a rough check; they mark moments, not maneuver spans, so they are not GT.
-
-### Rule baseline, scoring and the viewer
-
-Every run also writes `rules/scenes/`: what plain geometry and speed thresholds find (turns through
-intersection lanes with a real heading change, lane switches, speed thresholds), to see whether Jev beats
-simple arithmetic.
-
-`score` compares runs with GT scene files (same format as `scenes/`): per-label precision / recall
-(a maneuver counts when it overlaps a GT maneuver of the same label by at least 0.5 s, one-to-one),
-start / end timing, confusion in seconds, agreement over time and Jev's probability calibration.
-
-`view` is a local page: front camera, a bird's-eye view of lanes, ego and objects, timeline bars for GT,
-Jev and the rule baseline, Jev's probability, the scenario tags, and the script Jev saw. It is also the
-labeling tool: pick a label, drag on the GT row, save (or start from a run and fix it).
-
-The bird's-eye data depends only on the log and map, so it is built once per session and cached in
-`~/.cache/jevsceneminer/bev/` (the viewer builds missing ones in the background at start). New runs reuse
-it: their labels and Jev's probabilities are drawn on top at the cursor.
-
-## Roadmap
-
-- Hand-labeled GT for about an hour of nuPlan driving, and the first Jev vs rules comparison on it.
-
-## License
-
-[Apache-2.0](LICENSE)
-
-This is an independent project and is not affiliated with TypeSafe AI.
+Source code and original synthetic examples: [Apache-2.0](LICENSE).
+External datasets, maps and images retain their own terms.
+This independent project is not affiliated with TypeSafe AI or the nuPlan authors.

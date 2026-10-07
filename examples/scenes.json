@@ -1,0 +1,61 @@
+{
+  "date": "2025-12-29",
+  "session": "synthetic-rosbag",
+  "start_ns": "1767000000000000000",
+  "end_ns": "1767000045000000000",
+  "labels_version": "jsm-1.4",
+  "generator": {
+    "name": "jevsceneminer",
+    "version": "0.2.0",
+    "models": [
+      "synthetic-demo"
+    ],
+    "step_s": 1.0,
+    "past_s": 10,
+    "future_s": 15,
+    "table_step_s": 1.0,
+    "min_scene_s": 2.0,
+    "min_phase_s": 1.0,
+    "min_prob": 0.4,
+    "maneuver_tail_s": 0.0,
+    "require_indicator": false,
+    "traffic_side": "right",
+    "reclassified_samples": 46,
+    "classification_range_s": null
+  },
+  "scenes": [
+    {
+      "start_ns": "1767000000000000000",
+      "end_ns": "1767000019500000000",
+      "driving_decision": "keep_lane",
+      "longitudinal_phases": [
+        {
+          "end_ns": "1767000019500000000",
+          "decision": "cruising"
+        }
+      ]
+    },
+    {
+      "start_ns": "1767000019500000000",
+      "end_ns": "1767000023500000000",
+      "driving_decision": "lane_change_right",
+      "longitudinal_phases": [
+        {
+          "end_ns": "1767000023500000000",
+          "decision": "cruising"
+        }
+      ]
+    },
+    {
+      "start_ns": "1767000023500000000",
+      "end_ns": "1767000045000000000",
+      "driving_decision": "keep_lane",
+      "longitudinal_phases": [
+        {
+          "end_ns": "1767000045000000000",
+          "decision": "cruising"
+        }
+      ]
+    }
+  ]
+}

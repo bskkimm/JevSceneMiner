@@ -9,6 +9,8 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=4096]
       - id: trailing-whitespace
+        # Preserve the exact exported classifier input, including table padding.
+        exclude: ^examples/sample\.txt$
       - id: end-of-file-fixer
   - repo: local
     hooks:

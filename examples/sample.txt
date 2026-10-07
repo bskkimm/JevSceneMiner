@@ -1,0 +1,110 @@
+Driving log of the ego vehicle around NOW (right-hand traffic). Classify the observed lateral maneuver active at t=0; past and future are context. Classify longitudinal behavior separately using LOCAL SPEED CONTEXT. Times are relative to NOW. OFFSET = distance from the lane center (+ = left). RELATIVE HEADING = unwrapped yaw(t) - yaw(NOW), positive left; its sign alone does not indicate turning direction. YAW RATE + = turning left. Map occupancy boundaries do not define maneuver start/end. ROAD CONTEXT is a lane-map fact; map match unavailable means missing evidence, not a non-intersection. 
+
+LANES
+A: road; left neighbor: B (dashed line, can be crossed); right neighbor: none
+B: road; left neighbor: none; right neighbor: A (dashed line, can be crossed)
+
+TIME    LANE     ROAD CONTEXT              OFFSET   SPEED     ACCEL       YAW RATE  RELATIVE HEADING  INDICATOR  LIGHT
+t=-10s  B        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=-9s   B        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=-8s   B        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=-7s   B        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=-6s   B        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=-5s   B        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=-4s   B        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=-3s   B        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              RIGHT      unknown
+t=-2s   B        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              RIGHT      unknown
+t=-1s   B        road                      -1.2 m   14 km/h   +0.0 m/s²   +0 °/s    +0°               RIGHT      unknown
+t=+0s   A        road                      +1.2 m   14 km/h   +0.0 m/s²   +0 °/s    +0°               RIGHT      unknown   <- NOW
+t=+1s   A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              RIGHT      unknown
+t=+2s   A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+3s   A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+4s   A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+5s   A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+6s   A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+7s   A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+8s   A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+9s   A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+10s  A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+11s  A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+12s  A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+13s  A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+14s  A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+t=+15s  A        road                      +0.0 m   14 km/h   +0.0 m/s²   +0 °/s    +16°              off        unknown
+
+EVENTS
+t=-3.0s: indicator RIGHT on
+t=-0.5s: moves from B into its right neighbor A
+t=+1.02s: indicator off
+
+LOCAL SPEED CONTEXT (around NOW, at most 2 s each side)
+observed interval: t=-2.0s to t=+2.0s (complete window)
+speed at NOW: 4.00 m/s (14.40 km/h)
+speed endpoints: 4.00 -> 4.00 m/s; speed change: +0.00 m/s over the observed interval
+minimum acceleration: +0.00 m/s² at t=-2.0s
+minimum jerk: +0.00 m/s³ at t=-2.0s
+acceleration and jerk are derived from smoothed speed; short peaks can be softened
+
+SUMMARY
+indicator during the table: RIGHT from t=-3.0s to t=+1.02s
+heading change over t=-10.0s to t=+15.0s: +0°
+minimum longitudinal acceleration: 0.0 m/s² at t=-10.0s (over t=-10.0s to t=+15.0s)
+minimum longitudinal jerk: 0.0 m/s³ at t=-10.0s (over t=-10.0s to t=+15.0s)
+peak absolute yaw rate: +0.0 °/s at t=-10.0s (over t=-10.0s to t=+15.0s)
+braking onset (observed crossing from acceleration >= -0.3 to < -0.3 m/s²): none observed (over t=-10.0s to t=+15.0s); jerk alone is not braking onset
+offset while in lane A: -0.0 m to +1.7 m over t=-0.5s to t=+15.0s
+
+FORK CONTEXT (map alternatives and observed path within the sample window)
+no clear mapped non-intersection fork transition observed within this window; missing map matches or ambiguous geometry are insufficient branch evidence
+
+ROUTE CONTEXT (along the ego's actual path, past 10 s / future 15 s)
+indicator within this range: RIGHT from t=-3.0s to t=+1.02s
+
+EGO BODY AND LANE OCCUPANCY
+Map-derived estimates; painted-boundary alignment unvalidated. Virtual intersection polygons may overlap.
+REFERENCE is the first observed connected lane chain in this window, not an inferred maneuver origin.
+Connected segment end caps are unioned; segment shares can overlap and must not be summed as exclusive lanes.
+REFERENCE: B
+Continuous reference uses midpoint-blended centerline joins; maximum native join gap 0.00 m.
+Ego body: 5.176 x 2.297 m; pose reference configured logged pose; body center +1.461 m forward of pose (explicit run arguments).
+Margins are local cross-section envelope estimates; negative alone does not prove body boundary crossing.
+BODY TIME    REF(m) IN/OUT(%) CROSS-SECTION MARGINS(m) SEGMENT SHARES(%) U=unmapped X=ambiguous C=lateral boundary evidence
+body t=-10.0s -0.00 100/0 +0.60/+0.60 B:100 U:0 X:0 C:none
+body t=-9.0s -0.00 100/0 +0.60/+0.60 B:100 U:0 X:0 C:none
+body t=-8.0s -0.00 100/0 +0.60/+0.60 B:100 U:0 X:0 C:none
+body t=-7.0s -0.00 100/0 +0.60/+0.60 B:100 U:0 X:0 C:none
+body t=-6.0s -0.00 100/0 +0.60/+0.60 B:100 U:0 X:0 C:none
+body t=-5.0s -0.00 100/0 +0.60/+0.60 B:100 U:0 X:0 C:none
+body t=-4.0s -0.00 100/0 +0.60/+0.60 B:100 U:0 X:0 C:none
+body t=-3.0s -0.00 100/0 +0.60/+0.60 B:100 U:0 X:0 C:none
+body t=-2.0s -0.00 100/0 +0.60/+0.60 B:100 U:0 X:0 C:none
+body t=-1.0s -1.17 58/42 +1.50/-1.65 B:58, A:42 U:0 X:0 C:right
+body t=+0.0s -2.33 11/89 +2.67/-2.82 B:11, A:89 U:0 X:0 C:right
+body t=+1.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+2.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+3.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+4.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+5.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+6.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+7.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+8.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+9.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+10.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+11.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+12.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+13.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+14.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+body t=+15.0s -3.50 0/100 +4.10/-2.90 A:100 U:0 X:0 C:outside
+first boundary departure: t=-1.9s; last outside t=+15.0s; return unobserved within this continuous interval.
+Departure reporting tolerance: 1% body area outside; not a scene-label threshold.
+
+OBJECTS AT NOW (up to 8 within 30 m)
+(no object data)
+
+OBJECT INTERACTION CONTEXT (same sample window, source IDs only)
+Geometry supports interaction evidence, not a causal claim of avoidance.
+Body clearance is the shortest 2D edge-to-edge gap between oriented ego and object footprints; unknown without dimensions.
+lane corridor: ego's matched centerline buffered 1.15 m each side, a legacy proxy; reference-lane footprint intrusion is reported separately.
+Selected observations preserve NOW and closest passage. Additional geometry-event anchors are used when available.
+Tracks retained 0 / 0; omitted 0; priority: stopped-ahead reference-lane intruders, close body passages, then proximity to NOW.
+no nearby identified object tracks available
