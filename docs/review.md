@@ -71,6 +71,8 @@ Supply `--review annotation.json` only after source review.
 Measure regressions on unchanged held-out GT before adopting new input formats.
 
 Viewer Save writes separate GT; it neither trains Jev nor changes predictions.
+Multiple `view --run NAME=FOLDER` selections show separate timeline rows.
+The first available run supplies camera/BEV scene colors and GT seeding; raw probabilities come from the base output folder's steps.
 Lock evaluation GT before tuning annotations, label text or merge parameters.
 `classify --strip-map` uses a separately prepared map-independent actor shortlist and removes map text.
 It requires a complete pass; partial ablations would mix incompatible inputs.

@@ -1,6 +1,7 @@
 """Canonical numeric evidence shared by the readable script and processed samples."""
 from __future__ import annotations
 
+import bisect
 import math
 import numpy as np
 from shapely.geometry import LineString, Point, Polygon
@@ -146,8 +147,9 @@ def object_tracks(tl, lanemap, i_now, lo, hi, max_tracks=8, radius_m=30,
     # Shapes are source observations and reusable across overlapping context windows.
     shape_cache=getattr(tl,'_object_footprints',None)
     if shape_cache is None:shape_cache={};tl._object_footprints=shape_cache
-    for timestamp,objects in tl.session.objects:
-        if not tl.time_ns(lo)<=timestamp<=tl.time_ns(hi):continue
+    first=bisect.bisect_left(tl.object_times,tl.time_ns(lo))
+    last=bisect.bisect_right(tl.object_times,tl.time_ns(hi))
+    for timestamp,objects in tl.session.objects[first:last]:
         i=tl.index(timestamp)
         if i is None:continue
         c,s=math.cos(tl.yaw[i]),math.sin(tl.yaw[i]);projection=tl.lane(i)

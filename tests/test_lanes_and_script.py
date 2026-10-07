@@ -19,6 +19,31 @@ def test_topology(lanemap):
     assert lanemap.relation(11, 12) == "other"
 
 
+def test_object_history_visits_only_frames_within_the_window(lanemap,lane_change_session):
+    from dataclasses import replace
+    from jevsceneminer.sample_context import object_tracks
+    class CountedFrames(list):
+        visits=0
+        def __iter__(self):
+            for frame in super().__iter__():
+                type(self).visits+=1
+                yield frame
+        def __getitem__(self,index):
+            result=super().__getitem__(index)
+            return type(self)(result) if isinstance(index,slice) else result
+    native=[(t,[replace(o,track_id='car-1') for o in objects])
+        for t,objects in lane_change_session.objects]
+    frames=[(T0+i*10**9,[]) for i in range(-1000,0)]+native+[
+        (T0+i*10**9,[]) for i in range(11,1011)]
+    lane_change_session.objects=CountedFrames(frames)
+    timeline=build_timeline(lane_change_session,lanemap)
+    CountedFrames.visits=0
+    tracks,_=object_tracks(timeline,lanemap,timeline.index(T0+4*10**9),
+        timeline.index(T0+3*10**9),timeline.index(T0+5*10**9))
+    assert [o['time_s'] for o in tracks[0]['observations']]==[-1.,-.5,0.,.5,1.]
+    assert CountedFrames.visits==5
+
+
 def test_coordinates_follow_local_xy(lanemap):
     center = lanemap.lanes[10].centerline
     assert np.allclose(center[0], [OFFSET_X, OFFSET_Y + 1.75], atol=1e-3)

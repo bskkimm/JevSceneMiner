@@ -136,6 +136,8 @@ class Site:
         for f in [*meta["sources"], meta["map"], *([meta["bev_alignment"]] if meta.get("bev_alignment") else [])]:
             st = os.stat(f)
             parts.append(f"{Path(f).resolve()}:{st.st_size}:{st.st_mtime_ns}")
+        if meta.get('ego_geometry'):
+            parts.append(json.dumps(meta['ego_geometry'], sort_keys=True))
         return hashlib.sha1("|".join(parts).encode()).hexdigest()[:20]
 
     def _cached_bev(self, sid: str) -> dict:
@@ -202,9 +204,12 @@ class Site:
                                   round(o.length_m, 2) if o.length_m else None,
                                   round(o.width_m, 2) if o.width_m else None]
                              for o in objs]] for t, objs in s.objects]
+        geometry = meta.get('ego_geometry') or getattr(s, 'ego_geometry', None) or {
+            'length_m': 5.176, 'width_m': 2.297, 'center_forward_m': 1.461}
         doc = {"available": True, "lanes": lanes, "track": track, "objects": objects,
                "origin": [x0, y0],
-               "ego_vehicle": {"length_m": 5.176, "width_m": 2.297, "rear_axle_to_center_m": 1.461}}
+               "ego_vehicle": {"length_m": geometry['length_m'], "width_m": geometry['width_m'],
+                               "rear_axle_to_center_m": geometry['center_forward_m']}}
         if alignment:
             doc["original_lanes"] = original_lanes
             doc["map_alignment"] = {"description": alignment["description"], "approximate": True,

@@ -85,6 +85,11 @@ def effective_facts(native, now_ns, review):
                     obs['anchor_reasons'] = [r for r in obs.get('anchor_reasons', [])
                                              if not any(word in r for word in ('intrusion','departure','return','excursion'))]
                     obs['lane_evidence_source'] = 'unavailable: reviewed native map mismatch'
+    for span in facts.get('intersections', []):
+        outside = span.get('first_outside_s')
+        if outside is not None and reviewed_state(now_ns, outside, review):
+            span.update(first_outside_s=None, review_clipped=True, ends_at_window_edge=False)
+            affected = True
     if affected:
         # These summaries refer to the original uncorrected lane geometry.
         facts['window'].pop('lane_offset', None)

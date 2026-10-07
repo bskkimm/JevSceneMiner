@@ -4,6 +4,29 @@ from types import SimpleNamespace
 
 import pytest
 
+
+def test_runtime_counts_each_fresh_response_for_repeated_scripts(tmp_path, monkeypatch):
+    from jevsceneminer import cli
+    from jevsceneminer.jev import JevClassifier
+    from test_jev import FakeClient, LABELS
+    from types import SimpleNamespace
+    import json
+
+    (tmp_path/'steps').mkdir()
+    scripts={i*10**9:'identical stopped context' for i in range(3)}
+    (tmp_path/'steps'/'date_session.jsonl').write_text(''.join(
+        json.dumps(dict(t_ns=t,script=text))+'\n' for t,text in scripts.items()))
+    meta=dict(date='date',name='session',start_ns=0,end_ns=3*10**9,step_s=1)
+    args=SimpleNamespace(model='test',workers=2,require_indicator=False,
+        min_scene=2,min_phase=1,min_prob=0,maneuver_tail=0)
+    client=FakeClient()
+    monkeypatch.setattr(cli,'JevClassifier',lambda labels,cache,**kwargs:
+        JevClassifier(labels,cache,client_factory=lambda:client,log=lambda _:None,**kwargs))
+    cli._classify(tmp_path,meta,scripts,LABELS,args)
+    runtime=json.loads((tmp_path/'runtime'/'date_session.json').read_text())
+    assert runtime['fresh_answers']==client.calls
+    assert runtime['input_tokens']==client.calls*100
+
 from jevsceneminer import cli
 from jevsceneminer.jev import Answer, cache_key, load_labels
 

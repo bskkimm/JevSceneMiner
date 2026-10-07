@@ -113,6 +113,35 @@ def test_bev_keeps_native_box_dimensions_and_rear_axle_reference(monkeypatch):
     assert bev['ego_vehicle']=={'length_m':5.176,'width_m':2.297,'rear_axle_to_center_m':1.461}
 
 
+def test_bev_uses_configured_ego_geometry(monkeypatch):
+    from types import SimpleNamespace
+    import numpy as np
+    import shapely
+    import jevsceneminer.nuplan as reader
+    import jevsceneminer.nuplan_map as maps
+    ego=SimpleNamespace(t=np.array([0,100_000_000]),x=np.array([100.,101.]),
+        y=np.array([200.,200.]),yaw=np.array([0.,0.]))
+    monkeypatch.setattr(reader,'read_nuplan',lambda *a,**k:
+        SimpleNamespace(session=SimpleNamespace(ego=ego,objects=[])))
+    monkeypatch.setattr(maps,'load_nuplan_map',lambda *a:SimpleNamespace(
+        polygons={1:shapely.box(99,198,110,204)},lanes={1:SimpleNamespace(is_intersection=False)}))
+    meta={'sources':['log.db'],'map':'map.gpkg',
+        'ego_geometry':{'length_m':4.8,'width_m':2.,'center_forward_m':0.}}
+    assert Site._build_bev(meta)['ego_vehicle']=={
+        'length_m':4.8,'width_m':2.,'rear_axle_to_center_m':0.}
+
+
+def test_bev_cache_tracks_ego_geometry(tmp_path):
+    source=tmp_path/'log.db';source.write_bytes(b'log')
+    mapfile=tmp_path/'map.gpkg';mapfile.write_bytes(b'map')
+    meta={'sources':[str(source)],'map':str(mapfile),
+        'ego_geometry':{'length_m':4.8,'width_m':2.,'center_forward_m':0.}}
+    original=Site.bev_key(meta)
+    for key,value in [('length_m',5.),('width_m',2.3),('center_forward_m',1.461)]:
+        changed=dict(meta,ego_geometry=dict(meta['ego_geometry'],**{key:value}))
+        assert Site.bev_key(changed)!=original
+
+
 def test_local_bev_alignment_is_scoped_and_preserves_original_lanes(tmp_path,monkeypatch):
     from types import SimpleNamespace
     import numpy as np

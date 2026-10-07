@@ -186,10 +186,9 @@ def _classify(out: Path, meta: dict, scripts: dict, labels, args) -> None:
         answers[row['t_ns']] = Answer(row['lateral'], row['lateral_probs'], row.get('longitudinal'),
             row.get('longitudinal_probs', {}), row.get('model'), row.get('input_tokens'))
     started = time.perf_counter()
-    old_keys = set(cache._answers)
     answers.update(JevClassifier(labels, cache, model=model, workers=args.workers).classify(selected))
     inference_seconds = time.perf_counter() - started
-    fresh = [a for key, a in cache._answers.items() if key not in old_keys]
+    fresh = cache.written_answers
     result = []
     for line in lines:
         if not line.strip():

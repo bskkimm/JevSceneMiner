@@ -197,7 +197,12 @@ function spansOf(doc, key) {
   });
 }
 const maneuvers = (sp) => sp.filter((s) => s[2] !== "keep_lane");
-const mainRun = () => ["jev", S.data?.runs.jev || null];
+const mainRun = () => {
+  const name = S.runs.find(n => S.data?.runs[n]);
+  return name ? [name, S.data.runs[name]] : [S.runs[0] || "jev", null];
+};
+const runLabel = name => name === "jev" ? "Jev" : name;
+const htmlText = value => String(value).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 const pretty = label => (label || "unlabeled").replaceAll("_", " ");
 const overlap = (a, b) => Math.min(a[1], b[1]) - Math.max(a[0], b[0]);
 const fmt = (s) => { const d = s - S.t0; const m = Math.floor(d / 60); return `${m}:${(d - 60 * m).toFixed(1).padStart(4, "0")}`; };
@@ -205,7 +210,7 @@ const fmt = (s) => { const d = s - S.t0; const m = Math.floor(d / 60); return `$
 // ---------- loading ----------
 async function init() {
   const r = await (await fetch("/api/sessions")).json();
-  S.runs = ["jev"];
+  S.runs = r.runs;
   for (const s of r.sessions) $("session").add(new Option(`${s.location || s.date} · ${s.name}`, s.sid));
   for (const l of LAT) $("brushLat").add(new Option(l, l));
   for (const l of LON) $("brushLon").add(new Option(l, l));
@@ -259,9 +264,11 @@ const status = (t) => { $("status").textContent = t; };
 const ROWS = [];   // built in drawTimeline: {name, y, h, kind}
 function rowSpec() {
   const rows = [{id: "overview", label: "Overview", h: 20},
-                {id: "jev:lat", label: "Jev", h: 48}, {id: "gt:lat", label: "GT", h: 48}];
+    ...S.runs.map(name => ({id: `${name}:lat`, label: runLabel(name), h: 48})),
+    {id: "gt:lat", label: "GT", h: 48}];
   if ($("showDetails").checked) {
-    rows.push({id: "jev:lon", label: "Jev speed", h: 34}, {id: "gt:lon", label: "GT speed", h: 34});
+    rows.push(...S.runs.map(name => ({id: `${name}:lon`, label: `${runLabel(name)} speed`, h: 34})),
+      {id: "gt:lon", label: "GT speed", h: 34});
     if (S.probs.length) rows.push({id: "prob", label: "Probability", h: 40});
     if (S.data.tags.length) rows.push({id: "tags", label: "nuPlan tags", h: 24});
     if (S.data.meta.has_indicator !== false && S.data.indicator.length)
@@ -373,9 +380,10 @@ function drawTimeline() {
     g.fillRect(X(Math.min(S.drag.a, S.drag.b)), r.y, Math.abs(X(S.drag.b) - X(S.drag.a)), r.h);
   }
   S.tlGeom = { L, W, X, OX };
-  const jev = (S.data.runs.jev && S.data.runs.jev.scenes || []).find(s => sec(s.start_ns) <= S.t && S.t < sec(s.end_ns));
+  const [name, run] = mainRun();
+  const jev = (run?.scenes || []).find(s => sec(s.start_ns) <= S.t && S.t < sec(s.end_ns));
   const gt = S.gtScenes.find(s => s.start <= S.t && S.t < s.end);
-  $("currentLabels").textContent = `Jev: ${jev ? pretty(jev.driving_decision || jev.lateral) : "—"} · GT: ${gt ? pretty(gt.lateral) : "—"}`;
+  $("currentLabels").textContent = `${runLabel(name)}: ${jev ? pretty(jev.driving_decision || jev.lateral) : "—"} · GT: ${gt ? pretty(gt.lateral) : "—"}`;
   renderLegend();
 }
 
@@ -493,6 +501,7 @@ function renderEditor() {
     $(id).disabled = !selected || !writable;
   $("mergeGt").disabled = !writable || S.selected <= 0 || !selected || Math.abs(S.gtScenes[S.selected - 1].end - selected.start) > 1e-5;
   $("seedGt").disabled = !writable || !scenesFrom(mainRun()[1]).length;
+  $("seedGt").textContent = `Start from ${runLabel(mainRun()[0])}`;
   $("brushLat").disabled = !writable;
   $("addGt").disabled = !writable; $("save").disabled = !writable || !S.dirty || S.saving;
   $("undo").disabled = !writable || !S.undo.length;
@@ -524,7 +533,7 @@ $("undo").onclick = () => {
   S.dirty = true; syncGt(); drawTimeline(); renderEvents(); renderEditor();
 };
 $("seedGt").onclick = () => {
-  if (S.gtScenes.length && !confirm("Replace the current GT with Jev scenes?")) return;
+  if (S.gtScenes.length && !confirm(`Replace the current GT with ${runLabel(mainRun()[0])} scenes?`)) return;
   commitGt(scenesFrom(mainRun()[1])); S.selected = S.gtScenes.length ? 0 : -1; renderEditor(); drawTimeline();
 };
 $("addGt").onclick = () => {
@@ -582,11 +591,11 @@ addEventListener("beforeunload", e => { if (S.dirty) { e.preventDefault(); e.ret
 function renderEvents() {
   const label = $("evLabel").value;
   const gt = S.gtScenes.map((s, index) => ({...s, source: "GT", index}));
-  const jev = scenesFrom(mainRun()[1]).map(s => ({...s, source: "Jev", index: -1}));
+  const jev = scenesFrom(mainRun()[1]).map(s => ({...s, source: runLabel(mainRun()[0]), index: -1}));
   const rows = [...gt, ...jev].filter(s => s.lateral !== "keep_lane" && (!label || s.lateral === label)).sort((a, b) => a.start - b.start);
   $("events").innerHTML = `<table>${rows.map((s, i) => `<tr data-index="${i}"><td>${fmt(s.start)}</td>
     <td><span class="chip" style="background:${COLORS[s.lateral] || "#888"}">${pretty(s.lateral)}</span></td>
-    <td>${(s.end - s.start).toFixed(1)} s</td><td>${s.source}</td></tr>`).join("")}</table>` +
+    <td>${(s.end - s.start).toFixed(1)} s</td><td>${htmlText(s.source)}</td></tr>`).join("")}</table>` +
     (rows.length ? "" : '<p class="help">No maneuvers labeled yet.</p>');
   for (const tr of $("events").querySelectorAll("tr")) tr.onclick = () => {
     const scene = rows[+tr.dataset.index]; setTime(scene.start); centerView(scene.start);
@@ -637,7 +646,7 @@ function drawBev() {
   };
   path(k - 50, k + 1, "rgba(120,128,145,.8)");
   // The camera and BEV use identical world cross sections and scene colors.
-  const pieces=CameraDecisions.ribbon(scenesFrom(S.data.runs.jev),captureTime,sections);
+  const pieces=CameraDecisions.ribbon(scenesFrom(mainRun()[1]),captureTime,sections);
   for(const piece of pieces) {
     g.beginPath();[piece.from.left,piece.to.left,piece.to.right,piece.from.right].forEach((point,i)=>{
       const [x,y]=worldP(...point);i?g.lineTo(x,y):g.moveTo(x,y);
@@ -710,7 +719,7 @@ function cameraResultsSource() {
     if(!cameraMock)cameraMock=CameraDecisions.mock(S.t0,S.t1,LAT,LON.filter(l=>l!=="unknown"));
     return cameraMock;
   }
-  return {scenes:scenesFrom(S.data.runs.jev),steps:S.data.steps};
+  return {scenes:scenesFrom(mainRun()[1]),steps:S.data.steps};
 }
 function cameraPanel(host,title,rows) {
   const expanded=!!host.querySelector('details')?.open;

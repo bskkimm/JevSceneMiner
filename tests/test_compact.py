@@ -86,6 +86,18 @@ def test_review_clips_intersection_without_erasing_valid_prior_evidence():
     assert span['heading_change_deg'] is None and span['first_outside_s'] is None
     assert span['review_clipped'] is True
 
+
+def test_review_masks_exit_observation_without_erasing_valid_inside_interval():
+    native=fixture()
+    native['intersections']=[{'first_inside_s':1.,'last_inside_s':2.9,'first_outside_s':3.,
+        'map_turn_direction':'LEFT','heading_change_deg':20.,'entry_observed':True}]
+    review={'start_ns':0,'from_s':4.,'to_s':12.,'margin_s':1.,'chain_id':'R1','source':'review'}
+    span=effective_facts(native,0,review)['intersections'][0]
+    assert (span['first_inside_s'],span['last_inside_s'])==(1.,2.9)
+    assert span['heading_change_deg']==20.
+    assert span['first_outside_s'] is None
+    assert span['review_clipped'] is True
+
 def test_fork_evidence_is_read_with_actual_annotated_heading():
     script='\nFORK CONTEXT (map alternatives and observed path within the sample window)\nt=+2.0s: mapped non-intersection fork from A into B\n\nOTHER\nignored'
     assert _fork_section(script)=='t=+2.0s: mapped non-intersection fork from A into B'
