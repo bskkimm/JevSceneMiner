@@ -1,4 +1,4 @@
-"""Command line: ``jevsceneminer run`` (logs -> scripts -> Jev -> scenes), ``classify``, ``restitch``, ``score``."""
+"""Command line: log processing, classification, scene merging, review and offline evaluation."""
 
 from __future__ import annotations
 
@@ -353,6 +353,18 @@ def cmd_view(args) -> int:
     return 0
 
 
+def cmd_benchmark(args) -> int:
+    from jevsceneminer.scenes.benchmark import run_benchmark
+    try:
+        report = run_benchmark(Path(args.manifest), Path(args.out))
+    except (OSError, ValueError) as exc:
+        print(f"benchmark: {exc}", file=sys.stderr)
+        return 2
+    print(f"benchmark {report['name']}: {len(report['inputs'])} sessions, "
+          f"{len(report['runs'])} runs ({report['kind']}); reports in {args.out}")
+    return 0
+
+
 def main(argv=None) -> int:
     load_dotenv()
     argv = list(sys.argv[1:] if argv is None else argv)
@@ -443,6 +455,11 @@ def main(argv=None) -> int:
                     help="runs to score (default: jev=scenes rules=rules/scenes, relative to OUT)")
     sc.add_argument("--report", default=None, help="report folder (default: OUT/report)")
     sc.set_defaults(func=cmd_score)
+
+    benchmark = sub.add_parser("benchmark", help="offline comparison of hash-locked saved scenes")
+    benchmark.add_argument("manifest", help="jsm-benchmark-1 JSON manifest with explicit sessions and input hashes")
+    benchmark.add_argument("--out", required=True, help="folder for deterministic report.json and report.md")
+    benchmark.set_defaults(func=cmd_benchmark)
 
     v = sub.add_parser("view", help="local review / GT labeling site for a run folder")
     v.add_argument("out", help="an --out folder of `jevsceneminer run`")

@@ -102,7 +102,9 @@ def confusion(gt_doc: dict, run_doc: dict, key: str) -> collections.Counter:
     out: collections.Counter = collections.Counter()
     for a, b, gl in g:
         for k in range(int(round((b - a) / GRID_S))):
-            out[(gl, _label_at(r, a + (k + 0.5) * GRID_S) or "(none)")] += GRID_S
+            t = a + (k + 0.5) * GRID_S
+            if t < b:  # Rounding can place the last midpoint at the excluded end.
+                out[(gl, _label_at(r, t) or "(none)")] += GRID_S
     return out
 
 

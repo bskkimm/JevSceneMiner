@@ -47,3 +47,4 @@ jobs:
           cd /tmp
           /tmp/jevsceneminer-installed/bin/python -I "$GITHUB_WORKSPACE/tools/check_installed.py"
           /tmp/jevsceneminer-installed/bin/jevsceneminer run --help
+          /tmp/jevsceneminer-installed/bin/jevsceneminer benchmark "$GITHUB_WORKSPACE/benchmarks/synthetic/manifest.json" --out /tmp/jevsceneminer-benchmark
