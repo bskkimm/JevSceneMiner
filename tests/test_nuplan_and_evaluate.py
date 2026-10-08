@@ -77,7 +77,7 @@ def test_rules_find_the_lane_change(lanemap, lane_change_session):
 def test_labels_without_the_indicator_drop_its_requirement(tmp_path):
     from pathlib import Path
 
-    path = Path(__file__).resolve().parents[1] / "labels.yaml"
+    path = Path(__file__).resolve().parents[1] / "configs" / "labels.yaml"
     with_ind, without = load_labels(path), load_labels(path, has_indicator=False)
     assert "LEFT indicator" in with_ind.lateral["turn_left"]
     assert "indicator" not in without.lateral["turn_left"] and "[[" not in without.lateral["turn_left"]

@@ -77,7 +77,7 @@ def test_preparation_records_projection_and_model_settings(no_credentials, monke
 
 
 def seed_run(tmp_path):
-    labels = load_labels(cli.REPO_ROOT / 'labels.yaml', traffic_side='right', has_indicator=False)
+    labels = load_labels(cli.DEFAULT_LABELS, traffic_side='right', has_indicator=False)
     meta = dict(date='2026-01-01', name='synthetic', start_ns=10**9, end_ns=6*10**9,
                 step_s=1, traffic_side='right', has_indicator=False, inference_model='jev-test')
     for folder in ['meta', 'steps', 'cache']:

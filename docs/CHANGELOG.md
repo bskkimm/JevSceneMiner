@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Keep labels in `configs/` and project guides in `docs/`; preserve packaged label resources and CLI defaults.
 - Add an API-free, hash-locked saved-result benchmark with complete coverage checks and a clearly synthetic boundary example.
 - Keep time-agreement samples inside their assessed interval; identical 0.55 s/1.55 s intervals no longer incur a false missing-label penalty at the end.
 - Compare maneuver overlap at nanosecond precision so an exact 0.5 s match is accepted while a 1 ns shorter overlap is rejected.

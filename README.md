@@ -8,7 +8,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-[Demo](#boston-demo) · [Quick start](#quick-start) · [Usage](docs/usage.md) · [Schema](docs/schema.md) · [Contributing](CONTRIBUTING.md)
+[Demo](#boston-demo) · [Quick start](#quick-start) · [Usage](docs/usage.md) · [Schema](docs/schema.md) · [Contributing](docs/CONTRIBUTING.md)
 
 </div>
 
@@ -33,7 +33,7 @@ https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a
 ## What you can do
 
 - **Bring either source.** Rosbag + Lanelet2 or nuPlan + map produces the same sample schema; missing fields stay unknown.
-- **Define scenes in plain language.** Edit [lateral and longitudinal labels](labels.yaml), with a probability for each answer.
+- **Define scenes in plain language.** Edit [lateral and longitudinal labels](configs/labels.yaml), with a probability for each answer.
 - **Keep the full maneuver.** One lateral scene contains consecutive speed phases, such as braking, cruising and accelerating during a lane change.
 - **Review the evidence.** Synchronized camera, bird's-eye view (BEV), scene timeline, raw probabilities and a ground-truth editor.
 
@@ -127,7 +127,8 @@ See [usage](docs/usage.md) for rosbag inputs, options, outputs and remote viewin
 | [Evidence review](docs/review.md) | Opt-in annotations, missing actor history and selected reruns |
 | [Evaluation](docs/evaluation.md) | Offline benchmark, independent GT and limitations |
 | [Repository layout](docs/architecture.md) | Source groups and import compatibility |
-| [Contributing](CONTRIBUTING.md) | Development checks and contribution contracts |
+| [Contributing](docs/CONTRIBUTING.md) | Development checks and contribution contracts |
+| [Changelog](docs/CHANGELOG.md) | Release history |
 
 ## Status and license
 

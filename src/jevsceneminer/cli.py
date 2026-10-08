@@ -26,7 +26,7 @@ from jevsceneminer.scenes.merge import Step, session_document, stitch, write_sce
 from jevsceneminer.evidence.script import SAMPLE_SCHEMA_VERSION, TABLE_STEP_S, render_sample, strip_map
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_LABELS = REPO_ROOT / 'labels.yaml'
+DEFAULT_LABELS = REPO_ROOT / 'configs' / 'labels.yaml'
 if not DEFAULT_LABELS.is_file():
     DEFAULT_LABELS = Path(__file__).resolve().parent / 'labels.yaml'
 PRICE_PER_M_INPUT_TOKENS = 0.042  # USD, TypeSafe's published price; output tokens are free

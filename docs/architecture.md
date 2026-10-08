@@ -17,12 +17,15 @@ JevSceneMiner/
 ├── tests/              Python and browser-logic contracts
 ├── examples/           Original synthetic pipeline and sample artifacts
 ├── benchmarks/         Small synthetic, hash-locked scoring contract
-├── docs/               Usage, schema, review, evaluation and demo notes
+├── configs/            Default and experimental label questions
+│   ├── labels.yaml
+│   └── labels.compact.yaml
+├── docs/               Guides, changelog and contribution instructions
 │   └── assets/         Small documentation previews
 ├── tools/              Packaging and publication checks
 ├── .github/            CI and issue/PR templates
-├── labels.yaml
-├── labels.compact.yaml
+├── README.md
+├── LICENSE
 ├── pyproject.toml
 └── uv.lock
 ```
