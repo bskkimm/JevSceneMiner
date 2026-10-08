@@ -8,7 +8,7 @@ The full video is visible directly in the README; playback starts when the reade
 The README shows an actual Boston [nuPlan](https://www.nuscenes.org/nuplan) recording with Jev inference and merged driving decisions.
 It is a curated review example, not a representative accuracy benchmark.
 
-[Watch or download the showcase](https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a).
+[Watch or download the showcase](https://github.com/user-attachments/assets/4b97b6ed-595d-4b18-beac-87b1e636cca4).
 
 ![Boston turn with dark BEV and decision overlays](assets/boston-demo.jpg)
 

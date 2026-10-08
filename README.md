@@ -25,7 +25,7 @@ Convert motion, lane geometry and object interactions into shared readable evide
 
 Press Play below. If playback stalls after this page has been open for a while, refresh the page and press Play again.
 
-https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a
+https://github.com/user-attachments/assets/4b97b6ed-595d-4b18-beac-87b1e636cca4
 
 *Real nuPlan footage and Jev results. 1080p · 1 min 22 s · 3.5× playback · long stops shortened.*
 [Demo details and data attribution](docs/demo.md).
