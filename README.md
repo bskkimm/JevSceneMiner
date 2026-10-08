@@ -12,8 +12,8 @@
 
 </div>
 
-Mine maneuvers from **Autoware rosbags** and **nuPlan logs** with [Jev](https://docs.typesafe.ai/introduction).
-Turn recorded motion, lane geometry and object interactions into readable evidence, then classify each moment and merge it into timestamped scenes.
+Mine driving maneuvers from recorded vehicle data with [Jev](https://docs.typesafe.ai/introduction).
+Convert motion, lane geometry and object interactions into shared readable evidence, then classify each moment and merge it into timestamped scenes.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/25fd3b51-d9df-4ca2-9554-5e12180e3ce8" width="960" alt="Boston highlights: turn right, lane change and lane following">
@@ -32,31 +32,36 @@ https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a
 
 ## What you can do
 
-- **Bring either source.** Rosbag + Lanelet2 or nuPlan + map produces the same sample schema; missing fields stay unknown.
-- **Define scenes in plain language.** Edit [lateral and longitudinal labels](configs/labels.yaml), with a probability for each answer.
-- **Keep the full maneuver.** One lateral scene contains consecutive speed phases, such as braking, cruising and accelerating during a lane change.
-- **Review the evidence.** Synchronized camera, bird's-eye view (BEV), scene timeline, raw probabilities and a ground-truth editor.
+- **Shared evidence.** Input adapters produce the same [sample schema](docs/schema.md); missing evidence stays unknown.
+- **Editable labels.** Define [lateral and longitudinal decisions](configs/labels.yaml) in plain language, with probabilities for each answer.
+- **Complete maneuvers.** One lateral scene contains consecutive speed phases, such as decelerating, cruising and accelerating.
+- **Evidence review.** Synchronized camera, bird's-eye view (BEV), timeline, raw probabilities and ground-truth editing.
 
 ## Why Jev
 
-- **Fast batch inference.** Our recorded Boston run classified **933 fresh samples in 25.9 s**, using 8 concurrent workers. Lateral and longitudinal questions share one request. See [run measurements](docs/evaluation.md#recorded-boston-run).
-- **Low inference cost.** That run cost an estimated **$0.32**, about **$0.00034 per sample**. Jev 1.13's [published rate](https://docs.typesafe.ai/models) is $0.042 per million input tokens, with free output tokens; cost varies with context and questions.
-- **Cloud-based inference.** Use the hosted TypeSafe API without managing model weights or a local inference GPU. Preprocessing and review run locally; the readable scene context is sent to the API.
+| Benefit | Detail |
+| --- | --- |
+| Fast batch inference | **933 fresh samples in 25.9 s**, using 8 workers. |
+| Low inference cost | **Estimated $0.32** for that run, about **$0.00034/sample**. |
+| Cloud-based inference | Local preprocessing and review; readable evidence goes to TypeSafe's API. No local inference GPU. |
+
+One recorded Boston run with Jev 1.13; lateral and longitudinal questions share one request.
+See [measurement conditions](docs/evaluation.md#recorded-boston-run) and [pricing](https://docs.typesafe.ai/models). Cost varies with context and questions.
 
 ## What scene mining enables
 
-Reviewed scene labels can support:
+Use reviewed scene labels for:
 
-- **Data curation:** measure maneuver distribution, find coverage gaps and decide which scenarios need more recording.
-- **Scenario-based training:** build balanced datasets and select examples for behaviors a driving model handles poorly.
-- **Scenario-based validation:** group autonomous-driving performance metrics by scene to reveal weak scenarios; labels organize evaluation, while separate metrics measure performance.
-- **Failure analysis:** find recurring maneuver patterns around disengagements, near misses or planning failures when those events are recorded.
-- **Regression testing:** collect representative scene windows into repeatable tests for new model or software versions.
-- **Dataset search and comparison:** retrieve specific maneuvers and compare scenario coverage across recordings, dataset versions or locations.
+- **Data curation:** measure scene coverage and guide further collection.
+- **Scenario-based training:** balance datasets and target weak driving behaviors.
+- **Scenario-based validation:** organize driving-performance metrics by scene.
+- **Failure analysis:** find maneuver patterns around recorded incidents.
+- **Regression testing:** reuse reviewed scene windows across model/software versions.
+- **Dataset search and comparison:** find maneuvers and compare scenario coverage.
 
 ## Roadmap
 
-**Hybrid Jev + rule-based reasoning** is planned to improve decision accuracy and consistency by combining model probabilities with motion, map and temporal checks. The existing rules baseline is separate; the hybrid method has not been implemented. Improvements will be measured against independent, held-out ground truth.
+**Hybrid Jev + rule-based reasoning (planned):** combine model probabilities with motion, map and temporal checks to improve accuracy and consistency. Measure gains against independent, held-out ground truth.
 
 ## Pipeline
 
@@ -83,6 +88,13 @@ Output:                  start_ns / end_ns / driving_decision / longitudinal_pha
 
 See a complete [sample](examples/sample.json), its [Jev input](examples/sample.txt) and [merged scenes](examples/scenes.json).
 
+### Input adapters
+
+Built-in adapters support **nuPlan logs + maps** and **Autoware-topic MCAP rosbags + Lanelet2 maps**.
+
+Labs and companies can adapt their own recordings by developing preprocessing that produces the shared [sample contract](docs/schema.md) and [session metadata](src/jevsceneminer/cli.py#L132); classification and scene merging can then be reused.
+Raw-format loading, coordinate alignment, map matching and camera review may need source-specific integration.
+
 ## Quick start
 
 Linux · Python 3.10+ · [uv](https://docs.astral.sh/uv/getting-started/installation/).
@@ -100,7 +112,7 @@ Open **http://127.0.0.1:8650**. The demo generates an MCAP, a map, processed sam
 It includes timeline and script data. Camera review requires your own nuPlan sources and images.
 Use `--source nuplan` with a new output directory to try the other adapter.
 
-### Use your own logs
+### Run on supported inputs
 
 ```bash
 # Prepare inputs without calling the API.
@@ -132,7 +144,7 @@ See [usage](docs/usage.md) for rosbag inputs, options, outputs and remote viewin
 
 ## Status and license
 
-**Experimental, retrospective scene mining:** future observations provide context; this is offline analysis.
+**Experimental, offline scene mining:** future observations provide context.
 Map matching and polygon overlap are evidence, with physical lane ownership subject to source quality.
 The demo is a reviewed example; representative accuracy requires [held-out evaluation](docs/evaluation.md).
 
