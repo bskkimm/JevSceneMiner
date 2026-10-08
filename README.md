@@ -92,7 +92,7 @@ See a complete [sample](examples/sample.json), its [Jev input](examples/sample.t
 
 Built-in adapters support **nuPlan logs + maps** and **Autoware-topic MCAP rosbags + Lanelet2 maps**.
 
-For another dataset, develop preprocessing that produces the shared [sample contract](docs/schema.md) and [session metadata](docs/usage.md#outputs-and-review); classification and scene merging can then be reused.
+Labs and companies can adapt their own recordings by developing preprocessing that produces the shared [sample contract](docs/schema.md) and [session metadata](src/jevsceneminer/cli.py#L132); classification and scene merging can then be reused.
 Raw-format loading, coordinate alignment, map matching and camera review may need source-specific integration.
 
 ## Quick start
