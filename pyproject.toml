@@ -30,8 +30,8 @@ build-backend = "hatchling.build"
 packages = ["src/jevsceneminer"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"labels.yaml" = "jevsceneminer/labels.yaml"
-"labels.compact.yaml" = "jevsceneminer/labels.compact.yaml"
+"configs/labels.yaml" = "jevsceneminer/labels.yaml"
+"configs/labels.compact.yaml" = "jevsceneminer/labels.compact.yaml"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

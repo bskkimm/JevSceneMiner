@@ -62,7 +62,7 @@ Runtime files describe the latest invocation, not lifetime billing.
 
 ```bash
 uv run python -m jevsceneminer.compact out/native --out out/compact
-uv run jevsceneminer classify out/compact --labels labels.compact.yaml
+uv run jevsceneminer classify out/compact --labels configs/labels.compact.yaml
 ```
 
 This optional renderer reduces repeated prose with separate questions and outputs.

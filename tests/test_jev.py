@@ -80,7 +80,7 @@ def test_labels_fill_in_the_traffic_side():
 
     from jevsceneminer.jev import load_labels
 
-    path = Path(__file__).resolve().parents[1] / "labels.yaml"
+    path = Path(__file__).resolve().parents[1] / "configs" / "labels.yaml"
     left, right = load_labels(path), load_labels(path, traffic_side="right")
     assert "u_turn" in left.lateral and "{" not in "".join(left.lateral.values())
     assert left.indicator["u_turn"] == 3 and right.indicator["u_turn"] == 2          # far side

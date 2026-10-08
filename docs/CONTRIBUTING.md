@@ -22,7 +22,7 @@ CI also installs a wheel into a separate environment and checks packaged labels,
 
 Implementation lives in `src/jevsceneminer/`; use its grouped modules for new code.
 Keep legacy import bridges intact and verify wheel resources after layout changes.
-See [repository layout](docs/architecture.md).
+See [repository layout](architecture.md).
 
 ## Contracts to preserve
 
@@ -37,7 +37,7 @@ See [repository layout](docs/architecture.md).
 
 Use meaningful regression tests for new behavior and failures. Include both source adapters when changing common preprocessing.
 Label changes need held-out GT evaluation, not only a curated example.
-See [schema](docs/schema.md), [review](docs/review.md), and [evaluation](docs/evaluation.md).
+See [schema](schema.md), [review](review.md), and [evaluation](evaluation.md).
 
 ## Public files
 

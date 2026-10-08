@@ -96,7 +96,7 @@ Read [the evidence review guide](review.md) before correcting evidence or using 
 
 ## Labels
 
-[labels.yaml](../labels.yaml) defines the two Jev questions in plain language.
+[labels.yaml](../configs/labels.yaml) defines the two Jev questions in plain language.
 
 | Lateral decision | Longitudinal phase |
 | --- | --- |
@@ -109,4 +109,4 @@ Changing definitions changes cache keys. Indicator-dependent text is omitted whe
 The optional `--require-indicator` merge gate is disabled by default.
 
 
-For the shared sample and scene contracts, see [schema.md](schema.md). For development checks, see [CONTRIBUTING.md](../CONTRIBUTING.md).
+For the shared sample and scene contracts, see [schema.md](schema.md). For development checks, see [CONTRIBUTING.md](CONTRIBUTING.md).
