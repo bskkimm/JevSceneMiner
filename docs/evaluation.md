@@ -61,7 +61,7 @@ Compare the rules baseline and map-free ablation against unchanged GT.
 ### Recorded Boston run
 
 The original full Boston 1 Hz run on **2026-10-06**, before targeted evidence
-reviews, recorded these values in its saved runtime metadata:
+reviews, recorded these values in its saved run metadata:
 
 | Measurement | Value |
 | --- | --- |
