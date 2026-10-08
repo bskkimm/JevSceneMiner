@@ -6,7 +6,7 @@ The full video is visible directly in the README; playback starts when the reade
 The README shows an actual Boston [nuPlan](https://www.nuscenes.org/nuplan) recording with Jev inference and merged driving decisions.
 It is a curated review example, not a representative accuracy benchmark.
 
-[Watch or download the showcase](https://github.com/user-attachments/assets/1bcbf47f-8285-48d7-8a07-12db10be3ce0).
+[Watch or download the showcase](https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a).
 
 ![Boston turn with dark BEV and decision overlays](assets/boston-demo.jpg)
 
@@ -55,7 +55,7 @@ Source times are elapsed from the driving log start:
 
 Driving footage runs at **3.5×**. Two long stationary intervals in clip 1 are shortened, preserving 1.25 output seconds at each end.
 Joins use 0.2 s crossfades, and a source-time badge makes the skips visible.
-The silent H.264 video is 81.567 s at 30 fps; the README copy is 1280 × 720.
+The silent H.264 video is 81.567 s at 30 fps; the README copy is 1920 × 1080.
 No new inference was needed to export it.
 
 ## Data attribution
