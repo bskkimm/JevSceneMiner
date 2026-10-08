@@ -58,6 +58,8 @@ Source times are elapsed from the driving log start:
 Driving footage runs at **3.5×**. Two long stationary intervals in clip 1 are shortened, preserving 1.25 output seconds at each end.
 Joins use 0.2 s crossfades, and a source-time badge makes the skips visible.
 The silent H.264 video is 81.567 s at 30 fps; the README copy is 1920 × 1080.
+The compressed README copy is approximately 29.5 MB, down from 61.4 MB, with the same duration and frame count.
+If the embedded player stalls after the page has been open for a while, refresh the page to renew GitHub's temporary media URL and press Play again. Compression reduces transfer size; it does not remove link expiry.
 No new inference was needed to export it.
 
 ## Data attribution

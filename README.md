@@ -23,7 +23,7 @@ Convert motion, lane geometry and object interactions into shared readable evide
 
 ## Boston demo
 
-Press Play below.
+Press Play below. If playback stalls after this page has been open for a while, refresh the page and press Play again.
 
 https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a
 
