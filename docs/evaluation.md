@@ -58,6 +58,31 @@ Compare the rules baseline and map-free ablation against unchanged GT.
 
 ## Timing and cost
 
+### Recorded Boston run
+
+The original full Boston 1 Hz run on **2026-10-06**, before targeted evidence
+reviews, recorded these values in its saved runtime metadata:
+
+| Measurement | Value |
+| --- | --- |
+| Model / questions | `jev-1.13.0` / `jsm-1.4` |
+| Context / inference / table cadence | 10 s past, 15 s future / 1 Hz / 1 Hz |
+| Fresh samples / workers | 933 / 8 |
+| Inference wall time | 25.923 s (about 36 samples/s) |
+| Classification, merging and saving wall time | 36.029 s |
+| Preparation command wall time | 236.150 s |
+| Fresh input tokens | 7,551,204 |
+| Estimated API cost | $0.317, rounded to $0.32; about $0.00034/sample |
+
+Cost is input tokens × $0.042 / 1,000,000, using the
+[published Jev 1.13 rate](https://docs.typesafe.ai/models), verified 2026-10-08.
+It is an estimate, not a billing receipt. Preparation is excluded from inference
+time. These are one development run's measurements, not a latency guarantee or
+an accuracy benchmark; context size, concurrency, cache use, service limits and
+network conditions can change results. No new inference was run to publish them.
+
+### Recording new runs
+
 `runtime/<session>.json` records the latest invocation's inference seconds, selected samples, fresh answers, fresh input tokens and estimated cost.
 Preparation, viewer building and manual review are separate.
 Cached answers contribute no fresh tokens.

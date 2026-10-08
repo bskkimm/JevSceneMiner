@@ -35,6 +35,27 @@ https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a
 - **Keep the full maneuver.** One lateral scene contains consecutive speed phases, such as braking, cruising and accelerating during a lane change.
 - **Review the evidence.** Synchronized camera, bird's-eye view (BEV), scene timeline, raw probabilities and a ground-truth editor.
 
+## Why Jev
+
+- **Fast batch inference.** Our recorded Boston run classified **933 fresh samples in 25.9 s**, using 8 concurrent workers. Lateral and longitudinal questions share one request. See [run measurements](docs/evaluation.md#recorded-boston-run).
+- **Low inference cost.** That run cost an estimated **$0.32**, about **$0.00034 per sample**. Jev 1.13's [published rate](https://docs.typesafe.ai/models) is $0.042 per million input tokens, with free output tokens; cost varies with context and questions.
+- **Cloud-based inference.** Use the hosted TypeSafe API without managing model weights or a local inference GPU. Preprocessing and review run locally; the readable scene context is sent to the API.
+
+## What scene mining enables
+
+Reviewed scene labels can support:
+
+- **Data curation:** measure maneuver distribution, find coverage gaps and decide which scenarios need more recording.
+- **Scenario-based training:** build balanced datasets and select examples for behaviors a driving model handles poorly.
+- **Scenario-based validation:** group autonomous-driving performance metrics by scene to reveal weak scenarios; labels organize evaluation, while separate metrics measure performance.
+- **Failure analysis:** find recurring maneuver patterns around disengagements, near misses or planning failures when those events are recorded.
+- **Regression testing:** collect representative scene windows into repeatable tests for new model or software versions.
+- **Dataset search and comparison:** retrieve specific maneuvers and compare scenario coverage across recordings, dataset versions or locations.
+
+## Roadmap
+
+**Hybrid Jev + rule-based reasoning** is planned to improve decision accuracy and consistency by combining model probabilities with motion, map and temporal checks. The existing rules baseline is separate; the hybrid method has not been implemented. Improvements will be measured against independent, held-out ground truth.
+
 ## Pipeline
 
 ```text
