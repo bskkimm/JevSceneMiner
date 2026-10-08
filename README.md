@@ -21,16 +21,11 @@ Turn recorded motion, lane geometry and object interactions into readable eviden
 
 ## Boston demo
 
-<details>
-<summary><strong>Play the full Boston demo · 1 min 22 s</strong></summary>
-
 Press Play below. The video plays here, without autoplay or looping.
 
-https://github.com/user-attachments/assets/1bcbf47f-8285-48d7-8a07-12db10be3ce0
+https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a
 
-</details>
-
-*Real nuPlan footage and Jev results. 3.5× playback · long stops shortened.*
+*Real nuPlan footage and Jev results. 1080p · 1 min 22 s · 3.5× playback · long stops shortened.*
 [Demo details and data attribution](docs/demo.md).
 
 ## What you can do
