@@ -42,5 +42,5 @@ Both synthetic adapters are also compared before and after migration.
 ## Keep the tree small
 
 Keep large MP4s as GitHub attachments, raw data and derived runs outside Git, and only useful documentation assets under `docs/assets/`.
-The short README preview is a single optimized GIF; the full video is hosted separately.
+The short README preview and full video use GitHub attachments rather than large media files in Git.
 Avoid adding folders for speculative features. Evaluation should use saved results and independent, locked GT rather than a curated showcase.

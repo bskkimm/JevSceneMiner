@@ -15,9 +15,11 @@
 Mine maneuvers from **Autoware rosbags** and **nuPlan logs** with [Jev](https://docs.typesafe.ai/introduction).
 Turn recorded motion, lane geometry and object interactions into readable evidence, then classify each moment and merge it into timestamped scenes.
 
-![Boston highlights: turn right, lane change and lane following](docs/assets/boston-highlights.gif)
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/25fd3b51-d9df-4ca2-9554-5e12180e3ce8" width="960" alt="Boston highlights: turn right, lane change and lane following">
+</p>
 
-*Turn right → lane change → keep lane. Preview from seconds 22–31 of our Boston showcase.*
+<p align="center"><em>Turn right → lane change → keep lane. 1080p · 8 fps · seconds 22–31 of our Boston showcase.</em></p>
 
 ## Boston demo
 
@@ -34,6 +36,27 @@ https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a
 - **Define scenes in plain language.** Edit [lateral and longitudinal labels](labels.yaml), with a probability for each answer.
 - **Keep the full maneuver.** One lateral scene contains consecutive speed phases, such as braking, cruising and accelerating during a lane change.
 - **Review the evidence.** Synchronized camera, bird's-eye view (BEV), scene timeline, raw probabilities and a ground-truth editor.
+
+## Why Jev
+
+- **Fast batch inference.** Our recorded Boston run classified **933 fresh samples in 25.9 s**, using 8 concurrent workers. Lateral and longitudinal questions share one request. See [run measurements](docs/evaluation.md#recorded-boston-run).
+- **Low inference cost.** That run cost an estimated **$0.32**, about **$0.00034 per sample**. Jev 1.13's [published rate](https://docs.typesafe.ai/models) is $0.042 per million input tokens, with free output tokens; cost varies with context and questions.
+- **Cloud-based inference.** Use the hosted TypeSafe API without managing model weights or a local inference GPU. Preprocessing and review run locally; the readable scene context is sent to the API.
+
+## What scene mining enables
+
+Reviewed scene labels can support:
+
+- **Data curation:** measure maneuver distribution, find coverage gaps and decide which scenarios need more recording.
+- **Scenario-based training:** build balanced datasets and select examples for behaviors a driving model handles poorly.
+- **Scenario-based validation:** group autonomous-driving performance metrics by scene to reveal weak scenarios; labels organize evaluation, while separate metrics measure performance.
+- **Failure analysis:** find recurring maneuver patterns around disengagements, near misses or planning failures when those events are recorded.
+- **Regression testing:** collect representative scene windows into repeatable tests for new model or software versions.
+- **Dataset search and comparison:** retrieve specific maneuvers and compare scenario coverage across recordings, dataset versions or locations.
+
+## Roadmap
+
+**Hybrid Jev + rule-based reasoning** is planned to improve decision accuracy and consistency by combining model probabilities with motion, map and temporal checks. The existing rules baseline is separate; the hybrid method has not been implemented. Improvements will be measured against independent, held-out ground truth.
 
 ## Pipeline
 
