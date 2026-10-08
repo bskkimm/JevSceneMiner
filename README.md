@@ -39,14 +39,14 @@ https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a
 
 ```text
 Autoware MCAP + Lanelet2 ─┐
-                         ├─► preprocess ─► structured sample ─► Jev
-nuPlan SQLite + map ──────┘                  facts + script        │
-                                                                 ▼
-                                                        raw probabilities
-                                                                 │
-                                              merge lateral scenes + speed phases
-                                                                 │
-                                                   camera / BEV / timeline / GT
+                          ├─► preprocess ─► structured sample ─► Jev
+nuPlan SQLite + map ──────┘                   facts + script      │
+                                                                  ▼
+                                                          raw probabilities
+                                                                  │
+                                                  merge lateral scenes + speed phases
+                                                                  │
+                                                     camera / BEV / timeline / GT
 ```
 
 Jev receives the **readable script**, with past and future observations around NOW.
