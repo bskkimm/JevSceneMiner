@@ -16,7 +16,7 @@ Mine driving maneuvers from recorded vehicle data with [Jev](https://docs.typesa
 Convert motion, lane geometry and object interactions into shared readable evidence, then classify each moment and merge it into timestamped scenes.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/25fd3b51-d9df-4ca2-9554-5e12180e3ce8" width="960" alt="Boston highlights: turn right, lane change and lane following">
+  <img src="https://github.com/user-attachments/assets/377da8f2-5185-469d-9325-9f0da8dea1b5" width="960" alt="Boston highlights: turn right, lane change and lane following">
 </p>
 
 <p align="center"><em>Turn right → lane change → keep lane</em></p>

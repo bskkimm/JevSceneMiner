@@ -1,7 +1,7 @@
 # Boston showcase
 
 The README preview uses seconds 22–31 of the exported video: turn right, lane change, then keep lane.
-It is centered and encoded as a looping 1920 × 1080, 8 fps animated WebP to keep
+It is centered and encoded as a looping 1920 × 1080, 20 fps animated WebP to keep
 the transfer size smaller than an equivalent GIF.
 The full video is visible directly in the README; playback starts when the reader presses Play and does not loop.
 
