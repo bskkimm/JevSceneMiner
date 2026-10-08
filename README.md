@@ -19,11 +19,11 @@ Turn recorded motion, lane geometry and object interactions into readable eviden
   <img src="https://github.com/user-attachments/assets/25fd3b51-d9df-4ca2-9554-5e12180e3ce8" width="960" alt="Boston highlights: turn right, lane change and lane following">
 </p>
 
-<p align="center"><em>Turn right → lane change → keep lane </p>
+<p align="center"><em>Turn right → lane change → keep lane. 1080p · 8 fps · seconds 22–31 of our Boston showcase.</em></p>
 
 ## Boston demo
 
-Press Play below.
+Press Play below. The video plays here, without autoplay or looping.
 
 https://github.com/user-attachments/assets/2ac52a9c-eab8-43b9-90a8-15588abc860a
 
