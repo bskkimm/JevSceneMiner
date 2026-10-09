@@ -15,6 +15,8 @@
 Mine driving maneuvers from recorded vehicle data with [Jev](https://docs.typesafe.ai/introduction).
 Convert motion, lane geometry and object interactions into shared readable evidence, then classify each moment and merge it into timestamped scenes.
 
+Read the [project write-up on Medium](https://medium.com/@bskkim2022/turning-driving-logs-into-reviewable-scenes-with-jev-77b8c6977e6c) for the motivation, approach and lessons learned.
+
 <p align="center">
   <img src="https://github.com/user-attachments/assets/377da8f2-5185-469d-9325-9f0da8dea1b5" width="960" alt="Boston highlights: turn right, lane change and lane following">
 </p>
