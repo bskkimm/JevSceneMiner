@@ -24,6 +24,10 @@ Implementation lives in `src/jevsceneminer/`; use its grouped modules for new co
 Keep legacy import bridges intact and verify wheel resources after layout changes.
 See [repository layout](architecture.md).
 
+For a new raw-data format or a conversion problem, follow
+[Adapt your driving data](adapting-private-data.md). It covers field mapping,
+adapter boundaries, evidence validation and a reusable coding-agent task.
+
 ## Contracts to preserve
 
 - Missing map matches, dimensions, signals or actor identities remain unknown.

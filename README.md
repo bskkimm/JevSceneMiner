@@ -97,6 +97,8 @@ Built-in adapters support **nuPlan logs + maps** and **Autoware-topic MCAP rosba
 Labs and companies can adapt their own recordings by developing preprocessing that produces the shared [sample contract](docs/schema.md) and [session metadata](src/jevsceneminer/cli.py#L132); classification and scene merging can then be reused.
 Raw-format loading, coordinate alignment, map matching and camera review may need source-specific integration.
 
+For a different format, follow [Adapt your driving data](docs/adapting-private-data.md): a conversion checklist and copyable coding-agent task for building and validating an adapter.
+
 ## Quick start
 
 Linux · Python 3.10+ · [uv](https://docs.astral.sh/uv/getting-started/installation/).
@@ -137,6 +139,7 @@ See [usage](docs/usage.md) for rosbag inputs, options, outputs and remote viewin
 | Guide | Contents |
 | --- | --- |
 | [Usage](docs/usage.md) | Source setup, configuration, outputs and viewer |
+| [Adapt your driving data](docs/adapting-private-data.md) | New source adapters, evidence checks and a coding-agent task |
 | [Sample and scene schema](docs/schema.md) | Context, lane/body evidence and consecutive phases |
 | [Evidence review](docs/review.md) | Opt-in annotations, missing actor history and selected reruns |
 | [Evaluation](docs/evaluation.md) | Offline benchmark, independent GT and limitations |

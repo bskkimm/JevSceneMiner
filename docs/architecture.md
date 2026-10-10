@@ -24,6 +24,7 @@ JevSceneMiner/
 │   └── assets/         Small documentation previews
 ├── tools/              Packaging and publication checks
 ├── .github/            CI and issue/PR templates
+├── AGENTS.md           Coding-agent entry point to development and data guides
 ├── README.md
 ├── LICENSE
 ├── pyproject.toml
